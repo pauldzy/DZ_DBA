@@ -23,7 +23,8 @@ AS
    Notes:
    
       - Access to dba_extents is required in order to obtain the size of 
-        resources.
+        resources outside your user connection's schema.  If you are only
+        examining resources in your own schema, set p_user_segments to TRUE.
         
       - In many cases permissions for domain tables may not be the same as 
         permissions for the parent table and thus custom permissions or dba 
@@ -32,7 +33,18 @@ AS
    */
    FUNCTION get_table_size(
        p_table_owner        IN  VARCHAR2 DEFAULT NULL
-      ,p_table_name         IN  VARCHAR2     
+      ,p_table_name         IN  VARCHAR2 
+      ,p_return_zero_onerr  IN  VARCHAR2 DEFAULT 'FALSE'
+      ,p_user_segments      IN  VARCHAR2 DEFAULT 'FALSE' 
+   ) RETURN NUMBER;
+   
+   -----------------------------------------------------------------------------
+   -----------------------------------------------------------------------------
+   FUNCTION get_simple_table_size(
+       p_table_owner        IN  VARCHAR2 DEFAULT NULL
+      ,p_table_name         IN  VARCHAR2
+      ,p_return_zero_onerr  IN  VARCHAR2 DEFAULT 'FALSE'
+      ,p_user_segments      IN  VARCHAR2 DEFAULT 'FALSE' 
    ) RETURN NUMBER;
    
    -----------------------------------------------------------------------------
@@ -49,6 +61,7 @@ AS
 
       p_segment_owner - owner of the object (default USER)
       p_segment_name - object to examine
+      p_user_segments - allow fallback to user_segments
 
    Returns:
 
@@ -57,7 +70,8 @@ AS
    Notes:
    
       - Access to dba_extents is required in order to obtain the size of 
-        resources.
+        resources outside your user connection's schema.  If you are only
+        examining resources in your own schema, set p_user_segments to TRUE.
         
       - Note that Index Organized Tables (IOT) return a size of 0 by design as
         the storage is held by the index.
@@ -65,7 +79,8 @@ AS
    */
    FUNCTION get_object_size(
        p_segment_owner      IN  VARCHAR2 DEFAULT NULL
-      ,p_segment_name       IN  VARCHAR2      
+      ,p_segment_name       IN  VARCHAR2
+      ,p_user_segments      IN  VARCHAR2 DEFAULT 'FALSE' 
    ) RETURN NUMBER;
    
    -----------------------------------------------------------------------------
@@ -99,7 +114,8 @@ AS
    Notes:
    
       - Access to dba_extents is required in order to obtain the size of 
-        resources.
+        resources outside your user connection's schema.  If you are only
+        examining resources in your own schema, set p_user_segments to TRUE.
         
       - In many cases permissions for domain tables may not be the same as 
         permissions for the parent table and thus custom permissions or dba 
@@ -108,7 +124,8 @@ AS
    */
    FUNCTION get_domain_index_size(
        p_domain_index_owner IN  VARCHAR2 DEFAULT NULL
-      ,p_domain_index_name  IN  VARCHAR2      
+      ,p_domain_index_name  IN  VARCHAR2
+      ,p_user_segments      IN  VARCHAR2 DEFAULT 'FALSE' 
    ) RETURN NUMBER;
    
    -----------------------------------------------------------------------------
@@ -131,12 +148,14 @@ AS
    Notes:
    
       - Access to dba_extents is required in order to obtain the size of 
-        resources.
+        resources outside your user connection's schema.  If you are only
+        examining resources in your own schema, set p_user_segments to TRUE.
         
    */
    FUNCTION get_table_lob_size(
        p_table_owner        IN  VARCHAR2 DEFAULT NULL
-      ,p_table_name         IN  VARCHAR2      
+      ,p_table_name         IN  VARCHAR2
+      ,p_user_segments      IN  VARCHAR2 DEFAULT 'FALSE'
    ) RETURN NUMBER;
    
    -----------------------------------------------------------------------------
@@ -175,8 +194,16 @@ AS
       ,p_table_owners       OUT MDSYS.SDO_STRING2_ARRAY
       ,p_table_names        OUT MDSYS.SDO_STRING2_ARRAY   
    );
+   
+   -----------------------------------------------------------------------------
+   -----------------------------------------------------------------------------
+   FUNCTION schema_summary(
+       p_owner              IN  VARCHAR2 DEFAULT NULL
+      ,p_user_segments      IN  VARCHAR2 DEFAULT 'FALSE'
+   ) RETURN dz_dba_summary_list PIPELINED;
 
 END dz_dba_sizer;
 /
 
 GRANT EXECUTE ON dz_dba_sizer TO PUBLIC;
+
