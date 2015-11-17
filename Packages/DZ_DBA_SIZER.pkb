@@ -505,23 +505,18 @@ AS
       IF str_ityp_owner = 'MDSYS'
       AND str_ityp_name = 'SPATIAL_INDEX'
       THEN
-         str_sql := 'SELECT '
-                 || 'a.sdo_index_owner, '
-                 || 'a.sdo_index_table '
-                 || 'FROM '
-                 || 'mdsys.sdo_index_metadata_table a '
-                 || 'WHERE '
-                 || '    a.sdo_index_owner = :p01 '
-                 || 'AND a.sdo_index_name = :p02 ';
-                 
-         EXECUTE IMMEDIATE str_sql
+         SELECT 
+          a.sdo_index_owner
+         ,a.sdo_index_table 
          INTO
           str_spidx_owner
          ,str_spidx_name
-         USING
-          str_owner
-         ,str_index_name;
-         
+         FROM
+         all_sdo_index_metadata a 
+         WHERE 
+             a.sdo_index_owner = str_owner
+         AND a.sdo_index_name = str_index_name;
+                 
          num_size := get_table_size(
              p_table_owner   => str_spidx_owner
             ,p_table_name    => str_spidx_name
@@ -1066,7 +1061,7 @@ AS
       FROM
       all_indexes a
       JOIN
-      mdsys.sdo_index_metadata_table b
+      all_sdo_index_metadata b
       ON
       a.index_name = b.sdo_index_name
       WHERE
