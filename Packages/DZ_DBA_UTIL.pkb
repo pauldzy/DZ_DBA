@@ -206,7 +206,7 @@ AS
              aa.owner
             ,aa.table_name 
             FROM 
-            all_tables aa
+            all_all_tables aa
             UNION ALL 
             SELECT 
              bb.owner
@@ -227,7 +227,7 @@ AS
              aa.owner
             ,aa.table_name 
             FROM 
-            all_tables aa
+            all_all_tables aa
             UNION ALL 
             SELECT 
              bb.owner
@@ -260,3 +260,4 @@ AS
    
 END dz_dba_util;
 /
+
