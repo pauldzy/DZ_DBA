@@ -1065,12 +1065,48 @@ AS
       ON
       a.index_name = b.sdo_index_name
       WHERE
-      a.owner = str_owner
+          a.owner = str_owner
+      AND (a.table_owner,a.table_name) NOT IN (SELECT table_owner,table_name FROM TABLE(ary_georasters))
+      AND (a.table_owner,a.table_name) NOT IN (SELECT table_owner,table_name FROM TABLE(ary_rasters)) 
       ORDER BY
        b.sdo_index_owner
       ,b.sdo_index_table;
       
       ary_sdo_domain := ary_tmp_load;
+      
+      SELECT
+      dz_dba_summary(
+          b.sdo_index_owner
+         ,b.sdo_index_table
+         ,'MDSYS.SPATIAL_INDEX'
+         ,'MDSYS.SDO_GEORASTER'
+         ,'RASTER'
+         ,a.table_owner
+         ,a.table_name
+         ,NULL
+      )
+      BULK COLLECT INTO ary_tmp_load
+      FROM
+      all_indexes a
+      JOIN
+      all_sdo_index_metadata b
+      ON
+      a.index_name = b.sdo_index_name
+      WHERE
+          a.owner = str_owner
+      AND ( (a.table_owner,a.table_name) IN (SELECT table_owner,table_name FROM TABLE(ary_georasters))
+          OR (a.table_owner,a.table_name) IN (SELECT table_owner,table_name FROM TABLE(ary_rasters)) 
+      )
+      ORDER BY
+       b.sdo_index_owner
+      ,b.sdo_index_table;
+      
+      append_ary(
+          ary_sdo_domain
+         ,ary_tmp_load
+      );
+      
+      ary_tmp_load := ary_sdo_domain;      
       int_index := ary_sdo_domain.COUNT + 1;
       ary_sdo_domain.EXTEND(ary_tmp_load.COUNT);
       
@@ -1140,8 +1176,8 @@ AS
          SELECT
           bb.owner
          ,bb.table_name
-         ,'GEORASTER'
-         ,'GEORASTER'
+         ,'MDSYS.SDO_GEORASTER'
+         ,'MDSYS.SDO_GEORASTER'
          ,'RASTER'
          ,bb.owner
          ,bb.table_name
@@ -1157,8 +1193,8 @@ AS
          SELECT
           dd.owner
          ,dd.table_name
-         ,'RDT'
-         ,'GEORASTER'
+         ,'MDSYS.SDO_RASTER'
+         ,'MDSYS.SDO_GEORASTER'
          ,'RASTER'
          ,ee.parent_owner 
          ,ee.parent_table_name 
@@ -1174,9 +1210,9 @@ AS
          SELECT
           ff.owner
          ,ff.table_name
-         ,'SDE.ST_GEOMETRY'
-         ,'SDE.ST_GEOMETRY'
-         ,'FEATURE CLASS'
+         ,gg.category_type1
+         ,gg.category_type2
+         ,gg.category_type3
          ,ff.owner
          ,ff.table_name
          ,NULL
@@ -1191,9 +1227,9 @@ AS
          SELECT
           hh.owner
          ,hh.table_name
-         ,'SDE.ST_SPATIAL_INDEX'
-         ,'SDE.ST_GEOMETRY'
-         ,'FEATURE CLASS'
+         ,ii.category_type1
+         ,ii.category_type2
+         ,ii.category_type3
          ,ii.parent_owner
          ,ii.parent_table_name
          ,NULL
@@ -1208,9 +1244,9 @@ AS
          SELECT
           jj.owner
          ,jj.table_name
-         ,'MDSYS.SDO_GEOMETRY'
-         ,'MDSYS.SDO_GEOMETRY'
-         ,'FEATURE CLASS'
+         ,kk.category_type1
+         ,kk.category_type2
+         ,kk.category_type3
          ,jj.owner
          ,jj.table_name
          ,NULL
@@ -1225,9 +1261,9 @@ AS
          SELECT
           mm.owner
          ,mm.table_name
-         ,'MDSYS.SPATIAL_INDEX'
-         ,'MDSYS.SDO_GEOMETRY'
-         ,'FEATURE CLASS'
+         ,nn.category_type1
+         ,nn.category_type2
+         ,nn.category_type3
          ,nn.parent_owner
          ,nn.parent_table_name
          ,NULL
