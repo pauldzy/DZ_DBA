@@ -1,4 +1,4 @@
-<h2>DZ_DBA</h2>
+<h1>DZ_DBA</h1>
 
 PL/SQL code for the measuring, summation and reorganization of database objects wiht special emphasis on Oracle Spatial components.
 
@@ -62,12 +62,12 @@ The dz_dba_sizer attempts to group together tabular resources into "datasets".  
 
 As a system this falls apart if users build multiple dataset types on the same business tables.  So in theory you could have a business table representing some kind of region with an SDO_GEOMETRY column of multipoints showing locations of interest, a SDO_GEORASTER column tied to a small land usage raster of the region and a SDO_TOPO_GEOMETRY column tied back to some master topology of the region boundaries.  I don't recommend such an appproach but you can do that.  In that case its not really possible to tease things out into separate categories.  However I am thinking most rational folks keep such things separate for the most part.
 
-Existing Datasets:
-* RASTER - Parent is the table containing the column of SDO_GEORASTER. Children are the RDT tables referenced by the georasters and all spatial index domain tables supporting the georaster.
-* TOPOLOGY - Parent is the abstract topology name.  Children are the edge, node, face, relation, history and exp tables of the topology along with all supporting spatial index domain tables.  Note that tables using the topology via SDO_TOPO_GEOMETRY are not part of the dataset.  
-* NETWORK - Parent is the abstract network name.  Children are the node, link, path, path link, subpath, partition, partition blob, component and node level tables as listed in the network metadata along with all supporting spatial index domain tables.  
-* FEATURE CLASS - Parent is the table containing the column of MDSYS.SDO_GEOMETRY, MDSYS.ST_GEOMETRY, SDE.ST_GEOMETRY or MDSYS.SDO_TOPO_GEOMETRY.  Children are the domain index tables supporting the spatial indexes.  The differences in the spatial types used are expressed in type_category2 in the output.
-* ORACLE TEXT - Parent is the table containing the CTXSYS.CONTENT index.  Children are I, K, N and R tables of the domain index.
-* TABLE - Everything not covered as one of the datasets above is tagged as a "TABLE".
+Supported Datasets:
+* **RASTER** - Parent is the table containing the column of SDO_GEORASTER. Children are the RDT tables referenced by the georasters and all spatial index domain tables supporting the georaster.
+* **TOPOLOGY** - Parent is the abstract topology name.  Children are the edge, node, face, relation, history and exp tables of the topology along with all supporting spatial index domain tables.  Note that tables using the topology via SDO_TOPO_GEOMETRY are not part of the dataset.  
+* **NETWORK** - Parent is the abstract network name.  Children are the node, link, path, path link, subpath, partition, partition blob, component and node level tables as listed in the network metadata along with all supporting spatial index domain tables.  
+* **FEATURE CLASS** - Parent is the table containing the column of MDSYS.SDO_GEOMETRY, MDSYS.ST_GEOMETRY, SDE.ST_GEOMETRY or MDSYS.SDO_TOPO_GEOMETRY.  Children are the domain index tables supporting the spatial indexes.  The differences in the spatial types used are expressed in type_category2 in the output.
+* **ORACLE TEXT** - Parent is the table containing the CTXSYS.CONTENT index.  Children are I, K, N and R tables of the domain index.
+* **TABLE** - Everything not covered as one of the datasets above is tagged as a "TABLE" and has no children.
 
 Any feedback or suggestions for improvements are appreciated.
