@@ -80,6 +80,7 @@ AS
    FUNCTION get_object_size(
        p_segment_owner      IN  VARCHAR2 DEFAULT NULL
       ,p_segment_name       IN  VARCHAR2
+      ,p_segment_type       IN  VARCHAR2
       ,p_user_segments      IN  VARCHAR2 DEFAULT 'FALSE' 
    ) RETURN NUMBER;
    
