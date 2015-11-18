@@ -13,8 +13,10 @@ AS
 
    Parameters:
 
-      p_table_owner - owner of the table (default USER)
-      p_table_name - table to examine
+      p_table_owner       - owner of the table (default USER)
+      p_table_name        - table to examine
+      p_return_zero_onerr - return zero when object is not found
+      p_user_segments     - flag to force use of USER_SEGMENTS
 
    Returns:
 
@@ -60,8 +62,9 @@ AS
    Parameters:
 
       p_segment_owner - owner of the object (default USER)
-      p_segment_name - object to examine
-      p_user_segments - allow fallback to user_segments
+      p_segment_name  - object to examine
+      p_segment_type  - segment type, e.g. TABLE, INDEX, LOBINDEX, etc
+      p_user_segments - flag to force use of USER_SEGMENTS
 
    Returns:
 
@@ -106,7 +109,8 @@ AS
    Parameters:
 
       p_domain_index_owner - owner of the domain index (default USER)
-      p_domain_index_name - domain index to examine
+      p_domain_index_name  - domain index to examine
+      p_user_segments      - flag to force use of USER_SEGMENTS
 
    Returns:
 
@@ -139,8 +143,9 @@ AS
 
    Parameters:
 
-      p_table_owner - owner of the table (default USER)
-      p_table_name - table to examine
+      p_table_owner   - owner of the table (default USER)
+      p_table_name    - table to examine
+      p_user_segments - flag to force use of USER_SEGMENTS
 
    Returns:
 
@@ -170,9 +175,9 @@ AS
 
    Parameters:
 
-      p_table_owner - owner of the table (default USER)
-      p_table_name - table to examine
-
+      p_table_owner   - owner of the table (default USER)
+      p_table_name    - table to examine
+      
    Returns:
 
       VARCHAR2 - TRUE or FALSE
@@ -198,6 +203,29 @@ AS
    
    -----------------------------------------------------------------------------
    -----------------------------------------------------------------------------
+   /*
+   Function: dz_dba_sizer.schema_summary
+
+   Pipelined function to return the tables in a given schema by a somewhat
+   arbitrary three category system. 
+
+   Parameters:
+
+      p_owner - owner of the table (default USER)
+      p_user_segments- table to examine
+
+   Returns:
+
+      Table of DZ_DBA_SUMMARY type
+      
+   Notes:
+   
+      - Access to dba_extents is required in order to obtain the size of 
+        resources outside your user connection's schema.  If you are only
+        examining resources in your own schema, leave p_owner empty or 
+        set p_user_segments to TRUE.
+        
+   */
    FUNCTION schema_summary(
        p_owner              IN  VARCHAR2 DEFAULT NULL
       ,p_user_segments      IN  VARCHAR2 DEFAULT 'FALSE'
