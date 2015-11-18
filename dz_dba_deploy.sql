@@ -375,8 +375,8 @@ AS
    /*
    header: DZ_DBA
      
-   - Build ID: 26
-   - TFS Change Set: 7867
+   - Build ID: 27
+   - TFS Change Set: 7869
    
    Utilities for the summation and reorganization of resource storage in Oracle.
    
@@ -1406,8 +1406,10 @@ AS
 
    Parameters:
 
-      p_table_owner - owner of the table (default USER)
-      p_table_name - table to examine
+      p_table_owner       - owner of the table (default USER)
+      p_table_name        - table to examine
+      p_return_zero_onerr - return zero when object is not found
+      p_user_segments     - flag to force use of USER_SEGMENTS
 
    Returns:
 
@@ -1453,8 +1455,9 @@ AS
    Parameters:
 
       p_segment_owner - owner of the object (default USER)
-      p_segment_name - object to examine
-      p_user_segments - allow fallback to user_segments
+      p_segment_name  - object to examine
+      p_segment_type  - segment type, e.g. TABLE, INDEX, LOBINDEX, etc
+      p_user_segments - flag to force use of USER_SEGMENTS
 
    Returns:
 
@@ -1499,7 +1502,8 @@ AS
    Parameters:
 
       p_domain_index_owner - owner of the domain index (default USER)
-      p_domain_index_name - domain index to examine
+      p_domain_index_name  - domain index to examine
+      p_user_segments      - flag to force use of USER_SEGMENTS
 
    Returns:
 
@@ -1532,8 +1536,9 @@ AS
 
    Parameters:
 
-      p_table_owner - owner of the table (default USER)
-      p_table_name - table to examine
+      p_table_owner   - owner of the table (default USER)
+      p_table_name    - table to examine
+      p_user_segments - flag to force use of USER_SEGMENTS
 
    Returns:
 
@@ -1563,9 +1568,9 @@ AS
 
    Parameters:
 
-      p_table_owner - owner of the table (default USER)
-      p_table_name - table to examine
-
+      p_table_owner   - owner of the table (default USER)
+      p_table_name    - table to examine
+      
    Returns:
 
       VARCHAR2 - TRUE or FALSE
@@ -1591,6 +1596,29 @@ AS
    
    -----------------------------------------------------------------------------
    -----------------------------------------------------------------------------
+   /*
+   Function: dz_dba_sizer.schema_summary
+
+   Pipelined function to return the tables in a given schema by a somewhat
+   arbitrary three category system. 
+
+   Parameters:
+
+      p_owner - owner of the table (default USER)
+      p_user_segments- table to examine
+
+   Returns:
+
+      Table of DZ_DBA_SUMMARY type
+      
+   Notes:
+   
+      - Access to dba_extents is required in order to obtain the size of 
+        resources outside your user connection's schema.  If you are only
+        examining resources in your own schema, leave p_owner empty or 
+        set p_user_segments to TRUE.
+        
+   */
    FUNCTION schema_summary(
        p_owner              IN  VARCHAR2 DEFAULT NULL
       ,p_user_segments      IN  VARCHAR2 DEFAULT 'FALSE'
@@ -2075,12 +2103,20 @@ AS
       
    BEGIN 
       
+      --------------------------------------------------------------------------
+      -- Step 10
+      -- Check over incoming parameters
+      --------------------------------------------------------------------------
       IF str_domain_index_owner IS NULL
       THEN
          str_domain_index_owner := USER;
          
       END IF;
       
+      --------------------------------------------------------------------------
+      -- Step 20
+      -- Verify that object is a domain index
+      --------------------------------------------------------------------------
       BEGIN
          SELECT
           a.owner
@@ -2117,6 +2153,10 @@ AS
             
       END;
       
+      --------------------------------------------------------------------------
+      -- Step 30
+      -- Process MDSYS.SPATIAL_INDEX
+      --------------------------------------------------------------------------
       IF str_ityp_owner = 'MDSYS'
       AND str_ityp_name = 'SPATIAL_INDEX'
       THEN
@@ -2154,6 +2194,10 @@ AS
          
          RETURN num_size;      
                  
+      --------------------------------------------------------------------------
+      -- Step 40
+      -- Process SDE.ST_SPATIAL_INDEX
+      --------------------------------------------------------------------------
       ELSIF str_ityp_owner = 'SDE'
       AND str_ityp_name = 'ST_SPATIAL_INDEX'
       THEN
@@ -2191,17 +2235,34 @@ AS
             ,p_user_segments     => p_user_segments
          );
       
+      --------------------------------------------------------------------------
+      -- Step 50
+      -- Process CTXSYS.CONTEXT
+      --------------------------------------------------------------------------
       ELSIF str_ityp_owner = 'CTXSYS'
       AND str_ityp_name = 'CONTEXT'
       THEN
-         str_sql := 'SELECT '
-                 || 'a.idx_name '
-                 || 'FROM '
-                 || 'ctxsys.ctx_indexes a '
-                 || 'WHERE '
-                 || '    a.idx_table_owner = :p01 '
-                 || 'AND a.idx_table= :p02 ';
-                 
+         IF p_user_segments = 'TRUE'
+         THEN
+            str_sql := 'SELECT '
+                    || 'a.idx_name '
+                    || 'FROM '
+                    || 'ctxsys.ctx_user_indexes a '
+                    || 'WHERE '
+                    || '    a.idx_table_owner = :p01 '
+                    || 'AND a.idx_table= :p02 ';
+            
+         ELSE
+            str_sql := 'SELECT '
+                    || 'a.idx_name '
+                    || 'FROM '
+                    || 'ctxsys.ctx_indexes a '
+                    || 'WHERE '
+                    || '    a.idx_table_owner = :p01 '
+                    || 'AND a.idx_table= :p02 ';
+            
+         END IF;
+         
          EXECUTE IMMEDIATE str_sql
          INTO
          str_ctx_name
@@ -2216,11 +2277,25 @@ AS
             ,p_user_segments     => p_user_segments
          ) + get_table_size(
              p_table_owner       => str_table_owner
+            ,p_table_name        => 'DR$' || str_ctx_name || '$K'
+            ,p_return_zero_onerr => 'TRUE'
+            ,p_user_segments     => p_user_segments
+         ) + get_table_size(
+             p_table_owner       => str_table_owner
+            ,p_table_name        => 'DR$' || str_ctx_name || '$N'
+            ,p_return_zero_onerr => 'TRUE'
+            ,p_user_segments     => p_user_segments
+         ) + get_table_size(
+             p_table_owner       => str_table_owner
             ,p_table_name        => 'DR$' || str_ctx_name || '$R'
             ,p_return_zero_onerr => 'TRUE'
             ,p_user_segments     => p_user_segments
          );
          
+      --------------------------------------------------------------------------
+      -- Step 60
+      -- Fail if something else
+      --------------------------------------------------------------------------
       ELSE
          RAISE_APPLICATION_ERROR(-20001,'unhandled domain index type');
       
@@ -2420,14 +2495,16 @@ AS
       str_user_segments VARCHAR2(30 Char) := UPPER(p_user_segments);
       num_check         NUMBER;
       num_esri          NUMBER;
+      num_ctx           NUMBER;
       int_index         NUMBER;
       str_sql           VARCHAR2(4000 Char);
       ary_tables        dz_dba_summary_list := dz_dba_summary_list();
       ary_tmp_load      dz_dba_summary_list := dz_dba_summary_list();
       ary_georasters    dz_dba_summary_list := dz_dba_summary_list();
+      ary_rasters       dz_dba_summary_list := dz_dba_summary_list();
       ary_topologies    dz_dba_summary_list := dz_dba_summary_list();
       ary_ndms          dz_dba_summary_list := dz_dba_summary_list();
-      ary_rasters       dz_dba_summary_list := dz_dba_summary_list();
+      ary_ctxs          dz_dba_summary_list := dz_dba_summary_list();
       ary_sde_geometry  dz_dba_summary_list := dz_dba_summary_list();
       ary_sde_domain    dz_dba_summary_list := dz_dba_summary_list();
       ary_sdo_geometry  dz_dba_summary_list := dz_dba_summary_list();
@@ -2522,6 +2599,14 @@ AS
       all_users a
       WHERE
       a.username = 'SDE';
+      
+      SELECT
+      COUNT(*)
+      INTO num_ctx
+      FROM
+      all_users a
+      WHERE
+      a.username = 'CTXSYS';
       
       --------------------------------------------------------------------------
       -- Step 30
@@ -3081,6 +3166,106 @@ AS
       
       --------------------------------------------------------------------------
       -- Step 100
+      -- Check for CTX domain index tables
+      --------------------------------------------------------------------------
+      IF num_ctx = 1
+      THEN
+         str_sql := 'WITH ctxs AS ( '
+                 || '   SELECT '
+                 || '    a.idx_name '
+                 || '   ,a.idx_table_owner '
+                 || '   ,a.idx_table '
+                 || '   FROM ';
+                 
+         IF str_user_segments = 'TRUE'
+         THEN
+            str_sql := str_sql || '   ctxsys.ctx_user_indexes a ';
+            
+         ELSE
+            str_sql := str_sql || '   ctxsys.ctx_indexes a ';
+            
+         END IF;
+         
+         str_sql := str_sql
+                 || '   WHERE '
+                 || '   a.idx_table_owner = :p01 '
+                 || ') '
+                 || 'SELECT '
+                 || 'dz_dba_summary( '
+                 || '    a.owner '
+                 || '   ,a.table_name '
+                 || '   ,a.category_type1 '
+                 || '   ,a.category_type2 '
+                 || '   ,a.category_type3 '
+                 || '   ,a.parent_owner '
+                 || '   ,a.parent_table_name '
+                 || '   ,NULL '
+                 || ') '
+                 || 'FROM ( '
+                 || '   SELECT '
+                 || '    aa.idx_table_owner AS owner '
+                 || '   ,aa.idx_table       AS table_name '
+                 || '   ,''TABLE''          AS category_type1 '
+                 || '   ,''TABLE''          AS category_type2 '
+                 || '   ,''ORACLE TEXT''    AS category_type3 '
+                 || '   ,aa.idx_table_owner AS parent_owner '
+                 || '   ,aa.idx_table       AS parent_table_name '
+                 || '   FROM '
+                 || '   ctxs aa '
+                 || '   UNION ALL '
+                 || '   SELECT '
+                 || '    bb.idx_table_owner '
+                 || '   ,''DR$'' || bb.idx_name || ''$I'' '
+                 || '   ,''CTXSYS.CONTEXT'' '
+                 || '   ,''CTXSYS.CONTEXT'' '
+                 || '   ,''ORACLE TEXT'' '
+                 || '   ,bb.idx_table_owner '
+                 || '   ,bb.idx_table '
+                 || '   FROM '
+                 || '   ctxs bb '
+                 || '   UNION ALL '
+                 || '   SELECT '
+                 || '    cc.idx_table_owner '
+                 || '   ,''DR$'' || cc.idx_name || ''$K'' '
+                 || '   ,''CTXSYS.CONTEXT'' '
+                 || '   ,''CTXSYS.CONTEXT'' '
+                 || '   ,''ORACLE TEXT'' '
+                 || '   ,cc.idx_table_owner '
+                 || '   ,cc.idx_table '
+                 || '   FROM '
+                 || '   ctxs cc '
+                 || '   UNION ALL '
+                 || '   SELECT '
+                 || '    dd.idx_table_owner '
+                 || '   ,''DR$'' || dd.idx_name || ''$N'' '
+                 || '   ,''CTXSYS.CONTEXT'' '
+                 || '   ,''CTXSYS.CONTEXT'' '
+                 || '   ,''ORACLE TEXT'' '
+                 || '   ,dd.idx_table_owner '
+                 || '   ,dd.idx_table '
+                 || '   FROM '
+                 || '   ctxs dd '
+                 || '   UNION ALL '
+                 || '   SELECT '
+                 || '    ee.idx_table_owner '
+                 || '   ,''DR$'' || ee.idx_name || ''$R'' '
+                 || '   ,''CTXSYS.CONTEXT'' '
+                 || '   ,''CTXSYS.CONTEXT'' '
+                 || '   ,''ORACLE TEXT'' '
+                 || '   ,ee.idx_table_owner '
+                 || '   ,ee.idx_table '
+                 || '   FROM '
+                 || '   ctxs ee '
+                 || ') a ';
+                 
+         EXECUTE IMMEDIATE str_sql    
+         BULK COLLECT INTO ary_ctxs
+         USING str_owner;
+         
+      END IF;
+      
+      --------------------------------------------------------------------------
+      -- Step 110
       -- Now categorize each table
       --------------------------------------------------------------------------
       WITH all_tables_pool AS (
@@ -3130,6 +3315,7 @@ AS
          AND aa.table_name NOT IN (SELECT table_name FROM TABLE(ary_sdo_domain))
          AND aa.table_name NOT IN (SELECT table_name FROM TABLE(ary_topologies))
          AND aa.table_name NOT IN (SELECT table_name FROM TABLE(ary_ndms))
+         AND aa.table_name NOT IN (SELECT table_name FROM TABLE(ary_ctxs))
          -----------------------------------------------------------------------
          -- Georaster Tables
          UNION ALL
@@ -3274,6 +3460,24 @@ AS
          TABLE(ary_sdo_domain) qq
          ON
          pp.table_name = qq.table_name
+         -----------------------------------------------------------------------
+         -- CTX Domain Tables
+         UNION ALL
+         SELECT
+          rr.owner
+         ,rr.table_name
+         ,ss.category_type1
+         ,ss.category_type2
+         ,ss.category_type3
+         ,ss.parent_owner
+         ,ss.parent_table_name
+         ,NULL
+         FROM
+         all_tables_pool rr
+         JOIN
+         TABLE(ary_ctxs) ss
+         ON
+         rr.table_name = ss.table_name
       ) a
       ORDER BY
        a.parent_owner
@@ -3287,7 +3491,7 @@ AS
        END;
  
       --------------------------------------------------------------------------
-      -- Step 110
+      -- Step 120
       -- Output the results
       --------------------------------------------------------------------------
       FOR i IN 1 .. ary_tables.COUNT
@@ -3309,10 +3513,10 @@ CREATE OR REPLACE PACKAGE dz_dba_test
 AUTHID DEFINER
 AS
 
-   C_TFS_CHANGESET CONSTANT NUMBER := 7867;
+   C_TFS_CHANGESET CONSTANT NUMBER := 7869;
    C_JENKINS_JOBNM CONSTANT VARCHAR2(255) := 'BUILD-DZ_DBA';
-   C_JENKINS_BUILD CONSTANT NUMBER := 26;
-   C_JENKINS_BLDID CONSTANT VARCHAR2(255) := '26';
+   C_JENKINS_BUILD CONSTANT NUMBER := 27;
+   C_JENKINS_BLDID CONSTANT VARCHAR2(255) := '27';
    
    C_PREREQUISITES CONSTANT MDSYS.SDO_STRING2_ARRAY := MDSYS.SDO_STRING2_ARRAY(
    );
