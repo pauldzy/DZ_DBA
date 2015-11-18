@@ -375,8 +375,8 @@ AS
    /*
    header: DZ_DBA
      
-   - Build ID: 25
-   - TFS Change Set: 7829
+   - Build ID: 26
+   - TFS Change Set: 7867
    
    Utilities for the summation and reorganization of resource storage in Oracle.
    
@@ -1473,6 +1473,7 @@ AS
    FUNCTION get_object_size(
        p_segment_owner      IN  VARCHAR2 DEFAULT NULL
       ,p_segment_name       IN  VARCHAR2
+      ,p_segment_type       IN  VARCHAR2
       ,p_user_segments      IN  VARCHAR2 DEFAULT 'FALSE' 
    ) RETURN NUMBER;
    
@@ -1649,6 +1650,7 @@ AS
       num_table_size := num_table_size + get_object_size(
           p_segment_owner => str_table_owner
          ,p_segment_name  => p_table_name
+         ,p_segment_type  => 'TABLE'
          ,p_user_segments => p_user_segments  
       );
       
@@ -1673,6 +1675,7 @@ AS
          num_table_size := num_table_size + get_object_size(
              p_segment_owner => ary_owners(i)
             ,p_segment_name  => ary_names(i)
+            ,p_segment_type  => 'INDEX'
             ,p_user_segments => p_user_segments
          );
          
@@ -1770,6 +1773,7 @@ AS
       num_table_size := num_table_size + get_object_size(
           p_segment_owner => str_table_owner
          ,p_segment_name  => p_table_name
+         ,p_segment_type  => 'TABLE'
          ,p_user_segments => p_user_segments
       );
       
@@ -1794,6 +1798,7 @@ AS
          num_table_size := num_table_size + get_object_size(
              p_segment_owner => ary_owners(i)
             ,p_segment_name  => ary_names(i)
+            ,p_segment_type  => 'INDEX'
             ,p_user_segments => p_user_segments
          );
          
@@ -1807,8 +1812,9 @@ AS
    -----------------------------------------------------------------------------
    FUNCTION get_object_size(
        p_segment_owner      IN  VARCHAR2 DEFAULT NULL
-      ,p_segment_name       IN  VARCHAR2   
-      ,p_user_segments      IN  VARCHAR2 DEFAULT 'FALSE'   
+      ,p_segment_name       IN  VARCHAR2
+      ,p_segment_type       IN  VARCHAR2
+      ,p_user_segments      IN  VARCHAR2 DEFAULT 'FALSE'
    ) RETURN NUMBER
    AS
       str_segment_owner   VARCHAR2(30 Char) := p_segment_owner;
@@ -1907,7 +1913,8 @@ AS
             ON 
             a.segment_name = b.table_name 
             WHERE
-            a.segment_name = p_segment_name; 
+                a.segment_type = p_segment_type
+            AND a.segment_name = p_segment_name; 
          
          EXCEPTION
             -- Post 11g delayed segment creation just means size 0
@@ -1941,7 +1948,8 @@ AS
               || 'AND a.owner = b.owner '
               || 'WHERE '
               || '    a.owner = :p01 '
-              || 'AND a.segment_name = :p02 ';
+              || 'AND a.segment_type = :p02 '
+              || 'AND a.segment_name = :p03 ';
          
        BEGIN
          EXECUTE IMMEDIATE str_sql
@@ -1952,6 +1960,7 @@ AS
          ,num_rows
          USING
           str_segment_owner
+         ,p_segment_type
          ,p_segment_name;
          
          RETURN num_bytes;
@@ -2257,12 +2266,14 @@ AS
          num_lob_size := num_lob_size + get_object_size(
              p_segment_owner => p_table_owner
             ,p_segment_name  => ary_lob_segments(i)
+            ,p_segment_type  => 'LOBSEGMENT'
             ,p_user_segments => p_user_segments
          );
          
          num_lob_size := num_lob_size + get_object_size(
              p_segment_owner => p_table_owner
             ,p_segment_name  => ary_lob_indexes(i)
+            ,p_segment_type  => 'LOBINDEX'
             ,p_user_segments => p_user_segments
          );
                
@@ -2414,6 +2425,8 @@ AS
       ary_tables        dz_dba_summary_list := dz_dba_summary_list();
       ary_tmp_load      dz_dba_summary_list := dz_dba_summary_list();
       ary_georasters    dz_dba_summary_list := dz_dba_summary_list();
+      ary_topologies    dz_dba_summary_list := dz_dba_summary_list();
+      ary_ndms          dz_dba_summary_list := dz_dba_summary_list();
       ary_rasters       dz_dba_summary_list := dz_dba_summary_list();
       ary_sde_geometry  dz_dba_summary_list := dz_dba_summary_list();
       ary_sde_domain    dz_dba_summary_list := dz_dba_summary_list();
@@ -2529,7 +2542,7 @@ AS
       FROM
       all_tab_columns a
       WHERE 
-          a.owner = p_owner
+          a.owner = str_owner
       AND a.data_type_owner IN ('MDSYS','PUBLIC')
       AND a.data_type = 'SDO_GEORASTER'
       ORDER BY
@@ -2571,6 +2584,226 @@ AS
       
       --------------------------------------------------------------------------
       -- Step 50
+      -- Next collect any topologies in the schema
+      --------------------------------------------------------------------------  
+      WITH topologies AS (
+         SELECT 
+          a.owner
+         ,a.topology
+         FROM
+         all_sdo_topo_info a
+         WHERE
+         a.owner = str_owner
+         GROUP BY
+          a.owner
+         ,a.topology
+      )
+      SELECT
+      dz_dba_summary(
+          a.owner
+         ,a.table_name
+         ,'MDSYS.SDO_TOPO'
+         ,'MDSYS.SDO_TOPO'
+         ,'TOPOLOGY'
+         ,a.parent_owner
+         ,a.parent_table_name
+         ,NULL
+      )
+      BULK COLLECT INTO ary_topologies
+      FROM (
+         SELECT
+          aa.owner
+         ,aa.topology || '_EDGE$' AS table_name
+         ,aa.owner AS parent_owner
+         ,aa.topology AS parent_table_name
+         FROM
+         topologies aa
+         UNION ALL
+         SELECT
+          bb.owner
+         ,bb.topology || '_FACE$' AS table_name
+         ,bb.owner AS parent_owner
+         ,bb.topology AS parent_table_name
+         FROM
+         topologies bb
+         UNION ALL
+         SELECT
+          cc.owner
+         ,cc.topology || '_NODE$' AS table_name
+         ,cc.owner AS parent_owner
+         ,cc.topology AS parent_table_name
+         FROM
+         topologies cc
+         UNION ALL
+         SELECT
+          dd.owner
+         ,dd.topology || '_HISTORY$' AS table_name
+         ,dd.owner AS parent_owner
+         ,dd.topology AS parent_table_name
+         FROM
+         topologies dd
+         UNION ALL
+         SELECT
+          ee.owner
+         ,ee.topology || '_RELATION$' AS table_name
+         ,ee.owner AS parent_owner
+         ,ee.topology AS parent_table_name
+         FROM
+         topologies ee
+         UNION ALL
+         SELECT
+          ff.owner
+         ,ff.topology || '_EXP$' AS table_name
+         ,ff.owner AS parent_owner
+         ,ff.topology AS parent_table_name
+         FROM
+         topologies ff
+      ) a;
+      
+      --------------------------------------------------------------------------
+      -- Step 60
+      -- Next collect any ndms in the schema
+      --------------------------------------------------------------------------
+      WITH ndms AS (
+         SELECT 
+          a.owner
+         ,a.network
+         ,a.lrs_table_name
+         ,a.node_table_name
+         ,a.link_table_name
+         ,a.path_table_name
+         ,a.path_link_table_name 
+         ,a.subpath_table_name
+         ,a.partition_table_name
+         ,a.partition_blob_table_name
+         ,a.component_table_name
+         ,a.node_level_table_name
+         FROM
+         all_sdo_network_metadata a
+         WHERE
+         a.owner = str_owner
+      )
+      SELECT
+      dz_dba_summary(
+          a.owner
+         ,a.table_name
+         ,'MDSYS.SDO_NET'
+         ,'MDSYS.SDO_NET'
+         ,'NETWORK'
+         ,a.parent_owner
+         ,a.parent_table_name
+         ,NULL
+      )
+      BULK COLLECT INTO ary_ndms
+      FROM (
+         SELECT
+          aa.owner
+         ,aa.lrs_table_name AS table_name
+         ,aa.owner AS parent_owner
+         ,aa.network AS parent_table_name
+         FROM
+         ndms aa
+         WHERE
+         aa.lrs_table_name IS NOT NULL
+         UNION ALL
+         SELECT
+          bb.owner
+         ,bb.node_table_name
+         ,bb.owner AS parent_owner
+         ,bb.network AS parent_table_name
+         FROM
+         ndms bb
+         WHERE
+         bb.node_table_name IS NOT NULL
+         UNION ALL
+         SELECT
+          cc.owner
+         ,cc.link_table_name
+         ,cc.owner AS parent_owner
+         ,cc.network AS parent_table_name
+         FROM
+         ndms cc
+         WHERE
+         cc.link_table_name IS NOT NULL
+         UNION ALL
+         SELECT
+          dd.owner
+         ,dd.path_table_name
+         ,dd.owner AS parent_owner
+         ,dd.network AS parent_table_name
+         FROM
+         ndms dd
+         WHERE
+         dd.path_table_name IS NOT NULL
+         UNION ALL
+         SELECT
+          ee.owner
+         ,ee.path_link_table_name
+         ,ee.owner AS parent_owner
+         ,ee.network AS parent_table_name
+         FROM
+         ndms ee
+         WHERE
+         ee.path_link_table_name IS NOT NULL
+         UNION ALL
+         SELECT
+          ff.owner
+         ,ff.subpath_table_name
+         ,ff.owner AS parent_owner
+         ,ff.network AS parent_table_name
+         FROM
+         ndms ff
+         WHERE
+         ff.subpath_table_name IS NOT NULL
+         UNION ALL
+         SELECT
+          gg.owner
+         ,gg.partition_table_name
+         ,gg.owner AS parent_owner
+         ,gg.network AS parent_table_name
+         FROM
+         ndms gg
+         WHERE
+         gg.partition_table_name IS NOT NULL
+         UNION ALL
+         SELECT
+          hh.owner
+         ,hh.partition_blob_table_name
+         ,hh.owner AS parent_owner
+         ,hh.network AS parent_table_name
+         FROM
+         ndms hh
+         WHERE
+         hh.partition_blob_table_name IS NOT NULL
+         UNION ALL
+         SELECT
+          ii.owner
+         ,ii.component_table_name
+         ,ii.owner AS parent_owner
+         ,ii.network AS parent_table_name
+         FROM
+         ndms ii
+         WHERE
+         ii.component_table_name IS NOT NULL
+         UNION ALL
+         SELECT
+          jj.owner
+         ,jj.node_level_table_name
+         ,jj.owner AS parent_owner
+         ,jj.network AS parent_table_name
+         FROM
+         ndms jj
+         WHERE
+         jj.node_level_table_name IS NOT NULL
+      ) a
+      GROUP BY
+       a.owner
+      ,a.table_name
+      ,a.parent_owner
+      ,a.parent_table_name;
+      
+      --------------------------------------------------------------------------
+      -- Step 70
       -- harvest any SDE.ST_GEOMETRY domain tables 
       --------------------------------------------------------------------------
       IF num_esri = 1
@@ -2618,15 +2851,15 @@ AS
       END IF;
       
       --------------------------------------------------------------------------
-      -- Step 60
-      -- harvest any MDSYS.SDO_GEOMETRY spatial tables but skip georaster
+      -- Step 80
+      -- harvest any MDSYS.SDO_TOPO_GEOMETRY spatial tables 
       --------------------------------------------------------------------------
       SELECT
       dz_dba_summary(
           a.owner
          ,a.table_name
-         ,'MDSYS.SDO_GEOMETRY'
-         ,'MDSYS.SDO_GEOMETRY'
+         ,'MDSYS.SDO_TOPO'
+         ,'MDSYS.SDO_TOPO'
          ,'FEATURE CLASS'
          ,NULL
          ,NULL
@@ -2637,10 +2870,8 @@ AS
       all_tab_columns a
       WHERE
           a.owner = str_owner
-      AND a.data_type_owner = 'MDSYS'
-      AND a.data_type = 'SDO_GEOMETRY'
-      AND a.table_name NOT IN (SELECT table_name FROM TABLE(ary_georasters))
-      AND a.table_name NOT IN (SELECT table_name FROM TABLE(ary_rasters))
+      AND a.data_type_owner IN ('MDSYS','PUBLIC')
+      AND a.data_type = 'SDO_TOPO_GEOMETRY'
       GROUP BY
        a.owner
       ,a.table_name
@@ -2649,15 +2880,63 @@ AS
       ,a.table_name;
       
       --------------------------------------------------------------------------
-      -- Step 70
-      -- harvest any MDSYS.SDO_GEOMETRY domain tables 
+      -- Step 90
+      -- harvest any MDSYS.SDO_GEOMETRY spatial tables but skip sdo items
+      -- supporting more complex types like georaster and topology
+      --------------------------------------------------------------------------
+      SELECT
+      dz_dba_summary(
+          a.owner
+         ,a.table_name
+         ,'MDSYS.' || MAX(a.data_type)
+         ,'MDSYS.' || MAX(a.data_type)
+         ,'FEATURE CLASS'
+         ,NULL
+         ,NULL
+         ,NULL
+      )
+      BULK COLLECT INTO ary_tmp_load
+      FROM
+      all_tab_columns a
+      WHERE
+          a.owner = str_owner
+      AND a.data_type_owner IN ('MDSYS','PUBLIC')
+      AND a.data_type IN ('SDO_GEOMETRY','ST_GEOMETRY')
+      -- This is to remove any topo geometry feature classes that might have sdo too
+      AND a.table_name NOT IN (SELECT table_name FROM TABLE(ary_sdo_geometry))
+      AND a.table_name NOT IN (SELECT table_name FROM TABLE(ary_georasters))
+      AND a.table_name NOT IN (SELECT table_name FROM TABLE(ary_rasters))
+      AND a.table_name NOT IN (SELECT table_name FROM TABLE(ary_topologies))
+      AND a.table_name NOT IN (SELECT table_name FROM TABLE(ary_ndms))
+      GROUP BY
+       a.owner
+      ,a.table_name
+      ORDER BY
+       a.owner
+      ,a.table_name;
+      
+      append_ary(
+          ary_sdo_geometry
+         ,ary_tmp_load
+      );
+      
+      --------------------------------------------------------------------------
+      -- Step 100
+      -- harvest any MDSYS.SDO_GEOMETRY domain tables but segregate indexes
+      -- supporting more complex items such as georasters and topologies
       --------------------------------------------------------------------------
       SELECT
       dz_dba_summary(
           b.sdo_index_owner
          ,b.sdo_index_table
          ,'MDSYS.SPATIAL_INDEX'
-         ,'MDSYS.SDO_GEOMETRY'
+         ,CASE
+          WHEN c.category_type2 IS NULL
+          THEN
+             'MDSYS.SDO_GEOMETRY'
+          ELSE
+             c.category_type2
+          END  
          ,'FEATURE CLASS'
          ,a.table_owner
          ,a.table_name
@@ -2670,10 +2949,16 @@ AS
       all_sdo_index_metadata b
       ON
       a.index_name = b.sdo_index_name
+      LEFT JOIN
+      TABLE(ary_sdo_geometry) c
+      ON
+      a.table_name = c.table_name
       WHERE
           a.owner = str_owner
       AND (a.table_owner,a.table_name) NOT IN (SELECT table_owner,table_name FROM TABLE(ary_georasters))
-      AND (a.table_owner,a.table_name) NOT IN (SELECT table_owner,table_name FROM TABLE(ary_rasters)) 
+      AND (a.table_owner,a.table_name) NOT IN (SELECT table_owner,table_name FROM TABLE(ary_rasters))
+      AND (a.table_owner,a.table_name) NOT IN (SELECT table_owner,table_name FROM TABLE(ary_topologies)) 
+      AND (a.table_owner,a.table_name) NOT IN (SELECT table_owner,table_name FROM TABLE(ary_ndms)) 
       ORDER BY
        b.sdo_index_owner
       ,b.sdo_index_table;
@@ -2712,6 +2997,72 @@ AS
          ,ary_tmp_load
       );
       
+      SELECT
+      dz_dba_summary(
+          b.sdo_index_owner
+         ,b.sdo_index_table
+         ,'MDSYS.SPATIAL_INDEX'
+         ,'MDSYS.SDO_TOPO'
+         ,'TOPOLOGY'
+         ,c.parent_owner
+         ,c.parent_table_name
+         ,NULL
+      )
+      BULK COLLECT INTO ary_tmp_load
+      FROM
+      all_indexes a
+      JOIN
+      all_sdo_index_metadata b
+      ON
+      a.index_name = b.sdo_index_name
+      JOIN
+      TABLE(ary_topologies) c
+      ON
+      a.table_name = c.table_name
+      WHERE
+      a.owner = str_owner
+      ORDER BY
+       b.sdo_index_owner
+      ,b.sdo_index_table;
+      
+      append_ary(
+          ary_sdo_domain
+         ,ary_tmp_load
+      );
+      
+      SELECT
+      dz_dba_summary(
+          b.sdo_index_owner
+         ,b.sdo_index_table
+         ,'MDSYS.SPATIAL_INDEX'
+         ,'MDSYS.SDO_NET'
+         ,'NETWORK'
+         ,c.parent_owner
+         ,c.parent_table_name
+         ,NULL
+      )
+      BULK COLLECT INTO ary_tmp_load
+      FROM
+      all_indexes a
+      JOIN
+      all_sdo_index_metadata b
+      ON
+      a.index_name = b.sdo_index_name
+      JOIN
+      TABLE(ary_ndms) c
+      ON
+      a.table_name = c.table_name
+      WHERE
+      a.owner = str_owner
+      ORDER BY
+       b.sdo_index_owner
+      ,b.sdo_index_table;
+      
+      append_ary(
+          ary_sdo_domain
+         ,ary_tmp_load
+      );
+      
       ary_tmp_load := ary_sdo_domain;      
       int_index := ary_sdo_domain.COUNT + 1;
       ary_sdo_domain.EXTEND(ary_tmp_load.COUNT);
@@ -2729,7 +3080,7 @@ AS
       END LOOP;
       
       --------------------------------------------------------------------------
-      -- Step 80
+      -- Step 100
       -- Now categorize each table
       --------------------------------------------------------------------------
       WITH all_tables_pool AS (
@@ -2777,6 +3128,9 @@ AS
          AND aa.table_name NOT IN (SELECT table_name FROM TABLE(ary_sde_domain))
          AND aa.table_name NOT IN (SELECT table_name FROM TABLE(ary_sdo_geometry))
          AND aa.table_name NOT IN (SELECT table_name FROM TABLE(ary_sdo_domain))
+         AND aa.table_name NOT IN (SELECT table_name FROM TABLE(ary_topologies))
+         AND aa.table_name NOT IN (SELECT table_name FROM TABLE(ary_ndms))
+         -----------------------------------------------------------------------
          -- Georaster Tables
          UNION ALL
          SELECT
@@ -2794,6 +3148,7 @@ AS
          TABLE(ary_georasters) cc
          ON
          bb.table_name = cc.table_name
+         -----------------------------------------------------------------------
          -- Raster Tables
          UNION ALL
          SELECT
@@ -2811,7 +3166,8 @@ AS
          TABLE(ary_rasters) ee
          ON
          dd.table_name = ee.table_name
-         -- SDE Geometry Tables
+         -----------------------------------------------------------------------
+         -- Topology Tables
          UNION ALL
          SELECT
           ff.owner
@@ -2819,16 +3175,17 @@ AS
          ,gg.category_type1
          ,gg.category_type2
          ,gg.category_type3
-         ,ff.owner
-         ,ff.table_name
+         ,gg.parent_owner 
+         ,gg.parent_table_name 
          ,NULL
          FROM
          all_tables_pool ff
          JOIN
-         TABLE(ary_sde_geometry) gg
+         TABLE(ary_topologies) gg
          ON
          ff.table_name = gg.table_name
-         -- SDE Domain Tables
+         -----------------------------------------------------------------------
+         -- Network Tables
          UNION ALL
          SELECT
           hh.owner
@@ -2836,16 +3193,17 @@ AS
          ,ii.category_type1
          ,ii.category_type2
          ,ii.category_type3
-         ,ii.parent_owner
-         ,ii.parent_table_name
+         ,ii.parent_owner 
+         ,ii.parent_table_name 
          ,NULL
          FROM
          all_tables_pool hh
          JOIN
-         TABLE(ary_sde_domain) ii
+         TABLE(ary_ndms) ii
          ON
          hh.table_name = ii.table_name
-         -- SDO Geometry Tables
+         -----------------------------------------------------------------------
+         -- SDE Geometry Tables
          UNION ALL
          SELECT
           jj.owner
@@ -2859,26 +3217,63 @@ AS
          FROM
          all_tables_pool jj
          JOIN
-         TABLE(ary_sdo_geometry) kk
+         TABLE(ary_sde_geometry) kk
          ON
          jj.table_name = kk.table_name
+         -----------------------------------------------------------------------
+         -- SDE Domain Tables
+         UNION ALL
+         SELECT
+          ll.owner
+         ,ll.table_name
+         ,mm.category_type1
+         ,mm.category_type2
+         ,mm.category_type3
+         ,mm.parent_owner
+         ,mm.parent_table_name
+         ,NULL
+         FROM
+         all_tables_pool ll
+         JOIN
+         TABLE(ary_sde_domain) mm
+         ON
+         ll.table_name = mm.table_name
+         -----------------------------------------------------------------------
+         -- SDO Geometry Tables
+         UNION ALL
+         SELECT
+          nn.owner
+         ,nn.table_name
+         ,oo.category_type1
+         ,oo.category_type2
+         ,oo.category_type3
+         ,nn.owner
+         ,nn.table_name
+         ,NULL
+         FROM
+         all_tables_pool nn
+         JOIN
+         TABLE(ary_sdo_geometry) oo
+         ON
+         nn.table_name = oo.table_name
+         -----------------------------------------------------------------------
          -- SDO Domain Tables
          UNION ALL
          SELECT
-          mm.owner
-         ,mm.table_name
-         ,nn.category_type1
-         ,nn.category_type2
-         ,nn.category_type3
-         ,nn.parent_owner
-         ,nn.parent_table_name
+          pp.owner
+         ,pp.table_name
+         ,qq.category_type1
+         ,qq.category_type2
+         ,qq.category_type3
+         ,qq.parent_owner
+         ,qq.parent_table_name
          ,NULL
          FROM
-         all_tables_pool mm
+         all_tables_pool pp
          JOIN
-         TABLE(ary_sdo_domain) nn
+         TABLE(ary_sdo_domain) qq
          ON
-         mm.table_name = nn.table_name
+         pp.table_name = qq.table_name
       ) a
       ORDER BY
        a.parent_owner
@@ -2892,7 +3287,7 @@ AS
        END;
  
       --------------------------------------------------------------------------
-      -- Step 90
+      -- Step 110
       -- Output the results
       --------------------------------------------------------------------------
       FOR i IN 1 .. ary_tables.COUNT
@@ -2914,10 +3309,10 @@ CREATE OR REPLACE PACKAGE dz_dba_test
 AUTHID DEFINER
 AS
 
-   C_TFS_CHANGESET CONSTANT NUMBER := 7829;
+   C_TFS_CHANGESET CONSTANT NUMBER := 7867;
    C_JENKINS_JOBNM CONSTANT VARCHAR2(255) := 'BUILD-DZ_DBA';
-   C_JENKINS_BUILD CONSTANT NUMBER := 25;
-   C_JENKINS_BLDID CONSTANT VARCHAR2(255) := '25';
+   C_JENKINS_BUILD CONSTANT NUMBER := 26;
+   C_JENKINS_BLDID CONSTANT VARCHAR2(255) := '26';
    
    C_PREREQUISITES CONSTANT MDSYS.SDO_STRING2_ARRAY := MDSYS.SDO_STRING2_ARRAY(
    );
