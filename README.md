@@ -70,4 +70,7 @@ Supported Datasets:
 * **ORACLE TEXT** - Parent is the table with the column containing the CTXSYS.CONTENT index.  Children are the I, K, N and R tables of the domain index.
 * **TABLE** - Everything not covered as one of the datasets above is tagged as a "TABLE" and has no children.
 
+<h4>Installation</h4>
+My DZ modules are intended as light-weight and portable "drop in where needed" sets of independent code.  Choose a schema to install the code into and then just execute the deployment script.  All code is expressly PUBLIC and then can be executed from anywhere in the database.
+
 Any feedback or suggestions for improvements are appreciated.
