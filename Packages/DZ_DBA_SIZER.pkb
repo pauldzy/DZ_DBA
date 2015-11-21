@@ -863,6 +863,7 @@ AS
       num_ctx           NUMBER;
       int_index         NUMBER;
       str_sql           VARCHAR2(4000 Char);
+      ary_internal_list dz_dba_summary_tbl;
       ary_tables        dz_dba_summary_list := dz_dba_summary_list();
       ary_tmp_load      dz_dba_summary_list := dz_dba_summary_list();
       ary_georasters    dz_dba_summary_list := dz_dba_summary_list();
@@ -874,6 +875,41 @@ AS
       ary_sde_domain    dz_dba_summary_list := dz_dba_summary_list();
       ary_sdo_geometry  dz_dba_summary_list := dz_dba_summary_list();
       ary_sdo_domain    dz_dba_summary_list := dz_dba_summary_list();
+      
+      --------------------------------------------------------------------------
+      FUNCTION c2t(
+          p_input   IN  dz_dba_summary_tbl
+      ) RETURN dz_dba_summary_list
+      AS
+         ary_output dz_dba_summary_list := dz_dba_summary_list();
+         
+      BEGIN
+      
+         IF p_input IS NULL
+         OR p_input.COUNT = 0
+         THEN
+            RETURN ary_output;
+            
+         END IF;
+         
+         ary_output.EXTEND(p_input.COUNT);
+         FOR i IN 1 .. p_input.COUNT
+         LOOP
+            ary_output(i)                   := dz_dba_summary();
+            ary_output(i).owner             := p_input(i).owner;
+            ary_output(i).table_name        := p_input(i).table_name;
+            ary_output(i).category_type1    := p_input(i).category_type1;
+            ary_output(i).category_type2    := p_input(i).category_type2;
+            ary_output(i).category_type3    := p_input(i).category_type3;
+            ary_output(i).parent_owner      := p_input(i).parent_owner;
+            ary_output(i).parent_table_name := p_input(i).parent_table_name;
+            ary_output(i).item_size_bytes   := p_input(i).item_size_bytes;
+            
+         END LOOP;
+         
+         RETURN ary_output;
+      
+      END c2t;
       
       --------------------------------------------------------------------------
       PROCEDURE append_ary(
@@ -978,17 +1014,15 @@ AS
       -- First collect any georaster tables
       --------------------------------------------------------------------------  
       SELECT
-      dz_dba_summary(
-          a.owner
-         ,a.table_name
-         ,a.column_name
-         ,'RASTER'
-         ,'RASTER'
-         ,NULL
-         ,NULL
-         ,NULL
-      )
-      BULK COLLECT INTO ary_georasters
+       a.owner
+      ,a.table_name
+      ,a.column_name
+      ,'RASTER'
+      ,'RASTER'
+      ,NULL
+      ,NULL
+      ,NULL
+      BULK COLLECT INTO ary_internal_list
       FROM
       all_tab_columns a
       WHERE 
@@ -1000,6 +1034,8 @@ AS
       ,a.table_name
       ,a.column_name;
       
+      ary_georasters := c2t(ary_internal_list);
+      
       --------------------------------------------------------------------------
       -- Step 40
       -- Second harvest the names of the raster tables 
@@ -1007,27 +1043,25 @@ AS
       FOR i IN 1 .. ary_georasters.COUNT
       LOOP
          str_sql := 'SELECT '
-                 || 'dz_dba_summary( '
-                 || '    ''' || ary_georasters(i).owner || ''''
-                 || '   ,a.' || ary_georasters(i).category_type1 || '.RASTERDATATABLE '
-                 || '   ,''RASTER'' '
-                 || '   ,''RASTER'' '
-                 || '   ,''RASTER'' '
-                 || '   ,''' || ary_georasters(i).owner || ''''
-                 || '   ,''' || ary_georasters(i).table_name || ''''
-                 || '   ,NULL ' 
-                 || ') '
+                 || ' ''' || ary_georasters(i).owner || ''''
+                 || ',a.' || ary_georasters(i).category_type1 || '.RASTERDATATABLE '
+                 || ',''RASTER'' '
+                 || ',''RASTER'' '
+                 || ',''RASTER'' '
+                 || ',''' || ary_georasters(i).owner || ''''
+                 || ',''' || ary_georasters(i).table_name || ''''
+                 || ',NULL ' 
                  || 'FROM '
                  || ary_georasters(i).owner || '.' || ary_georasters(i).table_name || ' a '
                  || 'WHERE '
                  || 'a.' || ary_georasters(i).category_type1 || ' IS NOT NULL ';
              
          EXECUTE IMMEDIATE str_sql
-         BULK COLLECT INTO ary_tmp_load;
+         BULK COLLECT INTO ary_internal_list;
          
          append_ary(
              ary_rasters
-            ,ary_tmp_load
+            ,c2t(ary_internal_list)
          );
       
       END LOOP;
@@ -1049,17 +1083,15 @@ AS
          ,a.topology
       )
       SELECT
-      dz_dba_summary(
-          a.owner
-         ,a.table_name
-         ,'MDSYS.SDO_TOPO'
-         ,'MDSYS.SDO_TOPO'
-         ,'TOPOLOGY'
-         ,a.parent_owner
-         ,a.parent_table_name
-         ,NULL
-      )
-      BULK COLLECT INTO ary_topologies
+       a.owner
+      ,a.table_name
+      ,'MDSYS.SDO_TOPO'
+      ,'MDSYS.SDO_TOPO'
+      ,'TOPOLOGY'
+      ,a.parent_owner
+      ,a.parent_table_name
+      ,NULL
+      BULK COLLECT INTO ary_internal_list
       FROM (
          SELECT
           aa.owner
@@ -1110,6 +1142,8 @@ AS
          topologies ff
       ) a;
       
+      ary_topologies := c2t(ary_internal_list);
+      
       --------------------------------------------------------------------------
       -- Step 60
       -- Next collect any ndms in the schema
@@ -1134,17 +1168,15 @@ AS
          a.owner = str_owner
       )
       SELECT
-      dz_dba_summary(
-          a.owner
-         ,a.table_name
-         ,'MDSYS.SDO_NET'
-         ,'MDSYS.SDO_NET'
-         ,'NETWORK'
-         ,a.parent_owner
-         ,a.parent_table_name
-         ,NULL
-      )
-      BULK COLLECT INTO ary_ndms
+       a.owner
+      ,a.table_name
+      ,'MDSYS.SDO_NET'
+      ,'MDSYS.SDO_NET'
+      ,'NETWORK'
+      ,a.parent_owner
+      ,a.parent_table_name
+      ,NULL
+      BULK COLLECT INTO ary_internal_list
       FROM (
          SELECT
           aa.owner
@@ -1252,6 +1284,8 @@ AS
       ,a.parent_owner
       ,a.parent_table_name;
       
+      ary_ndms := c2t(ary_internal_list);
+      
       --------------------------------------------------------------------------
       -- Step 70
       -- harvest any SDE.ST_GEOMETRY domain tables 
@@ -1259,44 +1293,44 @@ AS
       IF num_esri = 1
       THEN
          str_sql := 'SELECT '
-                 || 'dz_dba_summary( '
-                 || '    a.owner '
-                 || '   ,a.table_name '
-                 || '   ,''SDE.ST_GEOMETRY'' '
-                 || '   ,''SDE.ST_GEOMETRY'' '
-                 || '   ,''FEATURE CLASS'' '
-                 || '   ,NULL '
-                 || '   ,NULL '
-                 || '   ,NULL ' 
-                 || ') '
+                 || ' a.owner '
+                 || ',a.table_name '
+                 || ',''SDE.ST_GEOMETRY'' '
+                 || ',''SDE.ST_GEOMETRY'' '
+                 || ',''FEATURE CLASS'' '
+                 || ',NULL '
+                 || ',NULL '
+                 || ',NULL ' 
                  || 'FROM '
                  || 'sde.st_geometry_columns a '
                  || 'WHERE '
                  || 'a.owner = :p01 ';
          
          EXECUTE IMMEDIATE str_sql 
-         BULK COLLECT INTO ary_sde_geometry
+         BULK COLLECT INTO ary_internal_list
          USING str_owner;
+         
+         ary_sde_geometry := c2t(ary_internal_list);
       
          str_sql := 'SELECT '
-                 || 'dz_dba_summary( '
-                 || '    a.owner '
-                 || '   ,''S'' || a.geom_id || ''_IDX$'' '
-                 || '   ,''SDE.ST_SPATIAL_INDEX'' '
-                 || '   ,''SDE.ST_GEOMETRY'' '
-                 || '   ,''FEATURE CLASS'' '
-                 || '   ,a.owner '
-                 || '   ,a.table_name '
-                 || '   ,NULL ' 
-                 || ') '
+                 || ' a.owner '
+                 || ',''S'' || a.geom_id || ''_IDX$'' '
+                 || ',''SDE.ST_SPATIAL_INDEX'' '
+                 || ',''SDE.ST_GEOMETRY'' '
+                 || ',''FEATURE CLASS'' '
+                 || ',a.owner '
+                 || ',a.table_name '
+                 || ',NULL ' 
                  || 'FROM '
                  || 'sde.st_geometry_columns a '
                  || 'WHERE '
                  || 'a.owner = :p01 ';
          
          EXECUTE IMMEDIATE str_sql 
-         BULK COLLECT INTO ary_sde_domain
+         BULK COLLECT INTO ary_internal_list
          USING str_owner;
+         
+         ary_sde_domain := c2t(ary_internal_list);
         
       END IF;
       
@@ -1305,17 +1339,15 @@ AS
       -- harvest any MDSYS.SDO_TOPO_GEOMETRY spatial tables 
       --------------------------------------------------------------------------
       SELECT
-      dz_dba_summary(
-          a.owner
-         ,a.table_name
-         ,'MDSYS.SDO_TOPO'
-         ,'MDSYS.SDO_TOPO'
-         ,'FEATURE CLASS'
-         ,NULL
-         ,NULL
-         ,NULL
-      )
-      BULK COLLECT INTO ary_sdo_geometry
+       a.owner
+      ,a.table_name
+      ,'MDSYS.SDO_TOPO'
+      ,'MDSYS.SDO_TOPO'
+      ,'FEATURE CLASS'
+      ,NULL
+      ,NULL
+      ,NULL
+      BULK COLLECT INTO ary_internal_list
       FROM
       all_tab_columns a
       WHERE
@@ -1329,23 +1361,23 @@ AS
        a.owner
       ,a.table_name;
       
+      ary_sdo_geometry := c2t(ary_internal_list);
+      
       --------------------------------------------------------------------------
       -- Step 90
       -- harvest any MDSYS.SDO_GEOMETRY spatial tables but skip sdo items
       -- supporting more complex types like georaster and topology
       --------------------------------------------------------------------------
       SELECT
-      dz_dba_summary(
-          a.owner
-         ,a.table_name
-         ,'MDSYS.' || MAX(a.data_type)
-         ,'MDSYS.' || MAX(a.data_type)
-         ,'FEATURE CLASS'
-         ,NULL
-         ,NULL
-         ,NULL
-      )
-      BULK COLLECT INTO ary_tmp_load
+       a.owner
+      ,a.table_name
+      ,'MDSYS.' || MAX(a.data_type)
+      ,'MDSYS.' || MAX(a.data_type)
+      ,'FEATURE CLASS'
+      ,NULL
+      ,NULL
+      ,NULL
+      BULK COLLECT INTO ary_internal_list
       FROM
       all_tab_columns a
       WHERE
@@ -1367,7 +1399,7 @@ AS
       
       append_ary(
           ary_sdo_geometry
-         ,ary_tmp_load
+         ,c2t(ary_internal_list)
       );
       
       --------------------------------------------------------------------------
@@ -1376,23 +1408,21 @@ AS
       -- supporting more complex items such as georasters and topologies
       --------------------------------------------------------------------------
       SELECT
-      dz_dba_summary(
-          b.sdo_index_owner
-         ,b.sdo_index_table
-         ,'MDSYS.SPATIAL_INDEX'
-         ,CASE
-          WHEN c.category_type2 IS NULL
-          THEN
-             'MDSYS.SDO_GEOMETRY'
-          ELSE
-             c.category_type2
-          END  
-         ,'FEATURE CLASS'
-         ,a.table_owner
-         ,a.table_name
-         ,NULL
-      )
-      BULK COLLECT INTO ary_tmp_load
+       b.sdo_index_owner
+      ,b.sdo_index_table
+      ,'MDSYS.SPATIAL_INDEX'
+      ,CASE
+       WHEN c.category_type2 IS NULL
+       THEN
+          'MDSYS.SDO_GEOMETRY'
+       ELSE
+          c.category_type2
+       END  
+      ,'FEATURE CLASS'
+      ,a.table_owner
+      ,a.table_name
+      ,NULL
+      BULK COLLECT INTO ary_internal_list
       FROM
       all_indexes a
       JOIN
@@ -1413,20 +1443,18 @@ AS
        b.sdo_index_owner
       ,b.sdo_index_table;
       
-      ary_sdo_domain := ary_tmp_load;
+      ary_sdo_domain := c2t(ary_internal_list);
       
       SELECT
-      dz_dba_summary(
-          b.sdo_index_owner
-         ,b.sdo_index_table
-         ,'MDSYS.SPATIAL_INDEX'
-         ,'MDSYS.SDO_GEORASTER'
-         ,'RASTER'
-         ,a.table_owner
-         ,a.table_name
-         ,NULL
-      )
-      BULK COLLECT INTO ary_tmp_load
+       b.sdo_index_owner
+      ,b.sdo_index_table
+      ,'MDSYS.SPATIAL_INDEX'
+      ,'MDSYS.SDO_GEORASTER'
+      ,'RASTER'
+      ,a.table_owner
+      ,a.table_name
+      ,NULL
+      BULK COLLECT INTO ary_internal_list
       FROM
       all_indexes a
       JOIN
@@ -1444,21 +1472,19 @@ AS
       
       append_ary(
           ary_sdo_domain
-         ,ary_tmp_load
+         ,c2t(ary_internal_list)
       );
       
       SELECT
-      dz_dba_summary(
-          b.sdo_index_owner
-         ,b.sdo_index_table
-         ,'MDSYS.SPATIAL_INDEX'
-         ,'MDSYS.SDO_TOPO'
-         ,'TOPOLOGY'
-         ,c.parent_owner
-         ,c.parent_table_name
-         ,NULL
-      )
-      BULK COLLECT INTO ary_tmp_load
+       b.sdo_index_owner
+      ,b.sdo_index_table
+      ,'MDSYS.SPATIAL_INDEX'
+      ,'MDSYS.SDO_TOPO'
+      ,'TOPOLOGY'
+      ,c.parent_owner
+      ,c.parent_table_name
+      ,NULL
+      BULK COLLECT INTO ary_internal_list
       FROM
       all_indexes a
       JOIN
@@ -1477,21 +1503,19 @@ AS
       
       append_ary(
           ary_sdo_domain
-         ,ary_tmp_load
+         ,c2t(ary_internal_list)
       );
       
       SELECT
-      dz_dba_summary(
-          b.sdo_index_owner
-         ,b.sdo_index_table
-         ,'MDSYS.SPATIAL_INDEX'
-         ,'MDSYS.SDO_NET'
-         ,'NETWORK'
-         ,c.parent_owner
-         ,c.parent_table_name
-         ,NULL
-      )
-      BULK COLLECT INTO ary_tmp_load
+       b.sdo_index_owner
+      ,b.sdo_index_table
+      ,'MDSYS.SPATIAL_INDEX'
+      ,'MDSYS.SDO_NET'
+      ,'NETWORK'
+      ,c.parent_owner
+      ,c.parent_table_name
+      ,NULL
+      BULK COLLECT INTO ary_internal_list
       FROM
       all_indexes a
       JOIN
@@ -1510,7 +1534,7 @@ AS
       
       append_ary(
           ary_sdo_domain
-         ,ary_tmp_load
+         ,c2t(ary_internal_list)
       );
       
       ary_tmp_load := ary_sdo_domain;      
@@ -1556,16 +1580,14 @@ AS
                  || '   a.idx_table_owner = :p01 '
                  || ') '
                  || 'SELECT '
-                 || 'dz_dba_summary( '
-                 || '    a.owner '
-                 || '   ,a.table_name '
-                 || '   ,a.category_type1 '
-                 || '   ,a.category_type2 '
-                 || '   ,a.category_type3 '
-                 || '   ,a.parent_owner '
-                 || '   ,a.parent_table_name '
-                 || '   ,NULL '
-                 || ') '
+                 || ' a.owner '
+                 || ',a.table_name '
+                 || ',a.category_type1 '
+                 || ',a.category_type2 '
+                 || ',a.category_type3 '
+                 || ',a.parent_owner '
+                 || ',a.parent_table_name '
+                 || ',NULL '
                  || 'FROM ( '
                  || '   SELECT '
                  || '    aa.idx_table_owner AS owner '
@@ -1624,8 +1646,10 @@ AS
                  || ') a ';
                  
          EXECUTE IMMEDIATE str_sql    
-         BULK COLLECT INTO ary_ctxs
+         BULK COLLECT INTO ary_internal_list
          USING str_owner;
+         
+         ary_ctxs := c2t(ary_internal_list);
          
       END IF;
       
@@ -1643,21 +1667,15 @@ AS
          a.owner = str_owner
       )
       SELECT
-      dz_dba_summary(
-          a.owner
-         ,a.table_name
-         ,a.category_type1
-         ,a.category_type2
-         ,a.category_type3
-         ,a.parent_owner
-         ,a.parent_table_name
-         ,get_simple_table_size(
-              p_table_owner   => a.owner
-             ,p_table_name    => a.table_name
-             ,p_user_segments => str_user_segments   
-          )
-      )
-      BULK COLLECT INTO ary_tables
+       a.owner
+      ,a.table_name
+      ,a.category_type1
+      ,a.category_type2
+      ,a.category_type3
+      ,a.parent_owner
+      ,a.parent_table_name
+      ,NULL
+      BULK COLLECT INTO ary_internal_list
       FROM (
          -- Start with nonspatial tables
          SELECT 
@@ -1854,9 +1872,25 @@ AS
        ELSE
           '1' || category_type1
        END;
+       
+      --------------------------------------------------------------------------
+      -- Step 130
+      -- Output the results
+      --------------------------------------------------------------------------
+      FOR i IN 1 .. ary_internal_list.COUNT
+      LOOP 
+         ary_internal_list(i).item_size_bytes := get_simple_table_size(
+             p_table_owner   => ary_internal_list(i).owner
+            ,p_table_name    => ary_internal_list(i).table_name
+            ,p_user_segments => str_user_segments   
+         );
+         
+      END LOOP;
+       
+      ary_tables := c2t(ary_internal_list);
  
       --------------------------------------------------------------------------
-      -- Step 120
+      -- Step 130
       -- Output the results
       --------------------------------------------------------------------------
       FOR i IN 1 .. ary_tables.COUNT
