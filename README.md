@@ -3,6 +3,9 @@
 PL/SQL code for the measuring, summation and reorganization of database objects with special emphasis on Oracle Spatial components.
 
 This module was originally created for the purpose of carefully measuring and moving about resources from datafile to datafile as the existing OEM tools do not support online movement of tables having domain (e.g. spatial) indexes.  Of course as always just dumping the data via datapump and reimporting is much easier.
+
+For the most up-to-date documentation see the auto-build  [dz_dba_deploy.pdf](https://github.com/pauldzy/DZ_DBA/blob/master/dz_dba_deploy.pdf).
+
 <hr/>
 
 <h4>DZ_DBA_MAIN</h4>
