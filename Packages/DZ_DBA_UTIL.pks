@@ -27,3 +27,4 @@ END dz_dba_util;
 /
 
 GRANT EXECUTE ON dz_dba_util TO PUBLIC;
+

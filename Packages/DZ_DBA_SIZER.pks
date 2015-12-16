@@ -2,6 +2,18 @@ CREATE OR REPLACE PACKAGE dz_dba_sizer
 AUTHID CURRENT_USER
 AS
 
+   TYPE dz_dba_summary_rec IS RECORD(
+       owner                    VARCHAR2(30 Char)
+      ,table_name               VARCHAR2(30 Char)
+      ,category_type1           VARCHAR2(255 Char)
+      ,category_type2           VARCHAR2(255 Char)
+      ,category_type3           VARCHAR2(255 Char)
+      ,parent_owner             VARCHAR2(30 Char)
+      ,parent_table_name        VARCHAR2(30 Char)
+      ,item_size_bytes          NUMBER
+   );
+   TYPE dz_dba_summary_tbl IS TABLE OF dz_dba_summary_rec;
+
    -----------------------------------------------------------------------------
    -----------------------------------------------------------------------------
    /*
