@@ -1659,22 +1659,22 @@ AS
        p_table_owner        IN  VARCHAR2 DEFAULT NULL
       ,p_table_name         IN  VARCHAR2
       ,p_return_zero_onerr  IN  VARCHAR2 DEFAULT 'FALSE'
-      ,p_user_segments      IN  VARCHAR2 DEFAULT 'FALSE' 
+      ,p_user_segments      IN  VARCHAR2 DEFAULT 'FALSE'
    ) RETURN NUMBER
    AS
       str_table_owner  VARCHAR2(30 Char) := p_table_owner;
       num_table_size   NUMBER := 0;
       ary_owners       MDSYS.SDO_STRING2_ARRAY := MDSYS.SDO_STRING2_ARRAY();
       ary_names        MDSYS.SDO_STRING2_ARRAY := MDSYS.SDO_STRING2_ARRAY();
-            
+
    BEGIN
-   
+
       IF str_table_owner IS NULL
       THEN
          str_table_owner := USER;
-      
+
       END IF;
-      
+
       IF dz_dba_util.table_exists(
           p_owner       => str_table_owner
          ,p_table_name  => p_table_name
@@ -1683,38 +1683,38 @@ AS
          IF p_return_zero_onerr = 'TRUE'
          THEN
             RETURN 0;
-            
+
          ELSE
             RAISE_APPLICATION_ERROR(-20001,'table not found');
-            
+
          END IF;
-          
+
       END IF;
-      
+
       -- First get table size alone
       num_table_size := num_table_size + get_object_size(
           p_segment_owner => str_table_owner
          ,p_segment_name  => p_table_name
          ,p_segment_type  => 'TABLE'
-         ,p_user_segments => p_user_segments  
+         ,p_user_segments => p_user_segments
       );
-      
+
       -- Second, get the table LOBs
       num_table_size := num_table_size + get_table_lob_size(
           p_table_owner   => str_table_owner
          ,p_table_name    => p_table_name
-         ,p_user_segments => p_user_segments  
+         ,p_user_segments => p_user_segments
       );
-      
+
       -- Third, get size of all nondomain indexes
       get_table_indexes(
           p_table_owner   => str_table_owner
-         ,p_table_name    => p_table_name 
+         ,p_table_name    => p_table_name
          ,p_domain_flag   => FALSE
          ,p_index_owners  => ary_owners
-         ,p_index_names   => ary_names   
+         ,p_index_names   => ary_names
       );
-      
+
       FOR i IN 1 .. ary_names.COUNT
       LOOP
          num_table_size := num_table_size + get_object_size(
@@ -1723,81 +1723,81 @@ AS
             ,p_segment_type  => 'INDEX'
             ,p_user_segments => p_user_segments
          );
-         
+
       END LOOP;
-      
+
       -- Fourth, get size of all domain indexes
       get_table_indexes(
           p_table_owner   => str_table_owner
-         ,p_table_name    => p_table_name 
+         ,p_table_name    => p_table_name
          ,p_domain_flag   => TRUE
          ,p_index_owners  => ary_owners
-         ,p_index_names   => ary_names   
+         ,p_index_names   => ary_names
       );
-      
+
       FOR i IN 1 .. ary_names.COUNT
       LOOP
          num_table_size := num_table_size + get_domain_index_size(
              p_domain_index_owner => ary_owners(i)
             ,p_domain_index_name  => ary_names(i)
-            ,p_user_segments      => p_user_segments  
+            ,p_user_segments      => p_user_segments
          );
-         
+
       END LOOP;
-      
+
       -- Fifth, I once had code to determine SDELOB size, now removed
-      
+
       -- Sixth, check if table is complex object table, SDO_GEORASTER is the only type for now
       IF is_complex_object_table(
           p_table_owner  => str_table_owner
-         ,p_table_name   => p_table_name      
+         ,p_table_name   => p_table_name
       ) = 'SDO_GEORASTER'
       THEN
          get_sdo_georaster_tables(
              p_table_owner  => str_table_owner
             ,p_table_name   => p_table_name
             ,p_table_owners => ary_owners
-            ,p_table_names  => ary_names  
+            ,p_table_names  => ary_names
          );
-         
+
          FOR i IN 1 .. ary_names.COUNT
          LOOP
             num_table_size := num_table_size + get_table_size(
                 p_table_owner   => ary_owners(i)
                ,p_table_name    => ary_names(i)
-               ,p_user_segments => p_user_segments  
+               ,p_user_segments => p_user_segments
             );
-            
+
          END LOOP;
-         
+
       END IF;
-      
+
       RETURN num_table_size;
-   
+
    END get_table_size;
-   
+
    -----------------------------------------------------------------------------
    -----------------------------------------------------------------------------
    FUNCTION get_simple_table_size(
        p_table_owner        IN  VARCHAR2 DEFAULT NULL
       ,p_table_name         IN  VARCHAR2
       ,p_return_zero_onerr  IN  VARCHAR2 DEFAULT 'FALSE'
-      ,p_user_segments      IN  VARCHAR2 DEFAULT 'FALSE' 
+      ,p_user_segments      IN  VARCHAR2 DEFAULT 'FALSE'
    ) RETURN NUMBER
    AS
       str_table_owner  VARCHAR2(30 Char) := p_table_owner;
       num_table_size   NUMBER := 0;
       ary_owners       MDSYS.SDO_STRING2_ARRAY := MDSYS.SDO_STRING2_ARRAY();
       ary_names        MDSYS.SDO_STRING2_ARRAY := MDSYS.SDO_STRING2_ARRAY();
-            
+
    BEGIN
-   
+
       IF str_table_owner IS NULL
       THEN
          str_table_owner := USER;
-      
+
       END IF;
-      
+
       IF dz_dba_util.table_exists(
           p_owner       => str_table_owner
          ,p_table_name  => p_table_name
@@ -1806,14 +1806,14 @@ AS
          IF p_return_zero_onerr = 'TRUE'
          THEN
             RETURN 0;
-            
+
          ELSE
             RAISE_APPLICATION_ERROR(-20001,'table not found');
-            
+
          END IF;
-          
+
       END IF;
-      
+
       -- First get table size alone
       num_table_size := num_table_size + get_object_size(
           p_segment_owner => str_table_owner
@@ -1821,23 +1821,23 @@ AS
          ,p_segment_type  => 'TABLE'
          ,p_user_segments => p_user_segments
       );
-      
+
       -- Second, get the table LOBs
       num_table_size := num_table_size + get_table_lob_size(
           p_table_owner   => str_table_owner
          ,p_table_name    => p_table_name
          ,p_user_segments => p_user_segments
       );
-      
+
       -- Third, get size of all nondomain indexes
       get_table_indexes(
           p_table_owner   => str_table_owner
-         ,p_table_name    => p_table_name 
+         ,p_table_name    => p_table_name
          ,p_domain_flag   => FALSE
          ,p_index_owners  => ary_owners
-         ,p_index_names   => ary_names   
+         ,p_index_names   => ary_names
       );
-      
+
       FOR i IN 1 .. ary_names.COUNT
       LOOP
          num_table_size := num_table_size + get_object_size(
@@ -1846,13 +1846,13 @@ AS
             ,p_segment_type  => 'INDEX'
             ,p_user_segments => p_user_segments
          );
-         
+
       END LOOP;
- 
+
       RETURN num_table_size;
-   
+
    END get_simple_table_size;
-   
+
    -----------------------------------------------------------------------------
    -----------------------------------------------------------------------------
    FUNCTION get_object_size(
@@ -1871,9 +1871,9 @@ AS
       str_tablespace_name VARCHAR2(30 Char);
       str_segment_type    VARCHAR2(255 Char);
       num_rows            NUMBER;
-      
+
    BEGIN
-   
+
       --------------------------------------------------------------------------
       -- Step 10
       -- Check over incoming parameters
@@ -1881,9 +1881,9 @@ AS
       IF str_segment_owner IS NULL
       THEN
          str_segment_owner := USER;
-         
+
       END IF;
-      
+
       --------------------------------------------------------------------------
       -- Step 20
       -- Check if table is actually IOT
@@ -1915,25 +1915,25 @@ AS
          AND a.table_name = b.table_name
          WHERE
              a.owner      = str_segment_owner
-         AND a.table_name = p_segment_name; 
-      
+         AND a.table_name = p_segment_name;
+
       EXCEPTION
          WHEN NO_DATA_FOUND
          THEN
             str_iot_type := NULL;
-            
+
          WHEN OTHERS
          THEN
             RAISE;
-            
+
       END;
-      
+
       IF str_iot_type = 'IOT'
       THEN
          RETURN 0;
-         
+
       END IF;
-      
+
       --------------------------------------------------------------------------
       -- Step 30
       -- Allow user_segments override if requested
@@ -1941,89 +1941,93 @@ AS
       IF p_user_segments = 'TRUE'
       THEN
          BEGIN
-            SELECT 
-             a.bytes 
-            ,a.tablespace_name 
-            ,a.segment_type 
-            ,b.num_rows 
+            SELECT
+             a.bytes
+            ,a.tablespace_name
+            ,a.segment_type
+            ,b.num_rows
             INTO
-             num_bytes 
-            ,str_tablespace_name 
-            ,str_segment_type 
+             num_bytes
+            ,str_tablespace_name
+            ,str_segment_type
             ,num_rows
-            FROM 
-            user_segments a 
-            LEFT JOIN 
-            user_tables b 
-            ON 
-            a.segment_name = b.table_name 
+            FROM
+            user_segments a
+            LEFT JOIN
+            user_tables b
+            ON
+            a.segment_name = b.table_name
             WHERE
                 a.segment_type = p_segment_type
-            AND a.segment_name = p_segment_name; 
-         
+            AND a.segment_name = p_segment_name;
+            
+             RETURN num_bytes;
+
          EXCEPTION
             -- Post 11g delayed segment creation just means size 0
             WHEN NO_DATA_FOUND
             THEN
                RETURN 0;
-               
+
             WHEN OTHERS
             THEN
                RAISE;
-         
+
          END;
-      
+
+      ELSE
+
+         --------------------------------------------------------------------------
+         -- Step 40
+         -- Otherwise query dba_segments
+         --------------------------------------------------------------------------
+         str_sql := 'SELECT '
+                 || ' a.bytes '
+                 || ',a.tablespace_name '
+                 || ',a.segment_type '
+                 || ',b.num_rows '
+                 || 'FROM '
+                 || 'dba_segments a '
+                 || 'LEFT JOIN '
+                 || 'all_all_tables b '
+                 || 'ON '
+                 || '    a.segment_name = b.table_name '
+                 || 'AND a.owner = b.owner '
+                 || 'WHERE '
+                 || '    a.owner = :p01 '
+                 || 'AND a.segment_type = :p02 '
+                 || 'AND a.segment_name = :p03 ';
+
+          BEGIN
+            EXECUTE IMMEDIATE str_sql
+            INTO
+             num_bytes
+            ,str_tablespace_name
+            ,str_segment_type
+            ,num_rows
+            USING
+             str_segment_owner
+            ,p_segment_type
+            ,p_segment_name;
+
+            RETURN num_bytes;
+
+         EXCEPTION
+            -- Post 11g delayed segment creation just means size 0
+            WHEN NO_DATA_FOUND
+            THEN
+               RETURN 0;
+
+            WHEN OTHERS
+            THEN
+               RAISE;
+
+         END;
+         
       END IF;
-      
-      --------------------------------------------------------------------------
-      -- Step 40
-      -- Otherwise query dba_segments
-      --------------------------------------------------------------------------
-      str_sql := 'SELECT '
-              || ' a.bytes '
-              || ',a.tablespace_name '
-              || ',a.segment_type '
-              || ',b.num_rows '
-              || 'FROM '
-              || 'dba_segments a '
-              || 'LEFT JOIN '
-              || 'all_all_tables b '
-              || 'ON '
-              || '    a.segment_name = b.table_name '
-              || 'AND a.owner = b.owner '
-              || 'WHERE '
-              || '    a.owner = :p01 '
-              || 'AND a.segment_type = :p02 '
-              || 'AND a.segment_name = :p03 ';
-         
-       BEGIN
-         EXECUTE IMMEDIATE str_sql
-         INTO
-          num_bytes 
-         ,str_tablespace_name 
-         ,str_segment_type 
-         ,num_rows
-         USING
-          str_segment_owner
-         ,p_segment_type
-         ,p_segment_name;
-         
-         RETURN num_bytes;
-         
-      EXCEPTION
-         -- Post 11g delayed segment creation just means size 0
-         WHEN NO_DATA_FOUND
-         THEN
-            RETURN 0;
-            
-         WHEN OTHERS
-         THEN
-            RAISE;
-      
-      END;
-      
+
    END get_object_size;
-   
+
    -----------------------------------------------------------------------------
    -----------------------------------------------------------------------------
    PROCEDURE get_table_indexes(
@@ -2031,19 +2035,19 @@ AS
       ,p_table_name         IN  VARCHAR2
       ,p_domain_flag        IN  BOOLEAN DEFAULT NULL
       ,p_index_owners       OUT MDSYS.SDO_STRING2_ARRAY
-      ,p_index_names        OUT MDSYS.SDO_STRING2_ARRAY   
+      ,p_index_names        OUT MDSYS.SDO_STRING2_ARRAY
    )
    AS
       str_table_owner VARCHAR2(30 Char) := p_table_owner;
-      
-   BEGIN 
-   
+
+   BEGIN
+
       IF str_table_owner IS NULL
       THEN
          str_table_owner := USER;
-         
+
       END IF;
-      
+
       IF p_domain_flag IS NULL
       THEN
          SELECT
@@ -2057,7 +2061,7 @@ AS
          WHERE
              a.table_owner = str_table_owner
          AND a.table_name = p_table_name;
-          
+
       ELSIF p_domain_flag = TRUE
       THEN
          SELECT
@@ -2072,7 +2076,7 @@ AS
              a.table_owner = str_table_owner
          AND a.table_name = p_table_name
          AND a.index_type = 'DOMAIN';
-      
+
       ELSIF p_domain_flag = FALSE
       THEN
          SELECT
@@ -2087,20 +2091,20 @@ AS
              a.table_owner = str_table_owner
          AND a.table_name = p_table_name
          AND a.index_type <> 'DOMAIN';
-      
+
       ELSE
          RAISE_APPLICATION_ERROR(-20001,'error');
-         
-      END IF; 
-         
+
+      END IF;
+
    END get_table_indexes;
-   
+
    -----------------------------------------------------------------------------
    -----------------------------------------------------------------------------
    FUNCTION get_domain_index_size(
        p_domain_index_owner IN  VARCHAR2 DEFAULT NULL
       ,p_domain_index_name  IN  VARCHAR2
-      ,p_user_segments      IN  VARCHAR2 DEFAULT 'FALSE' 
+      ,p_user_segments      IN  VARCHAR2 DEFAULT 'FALSE'
    ) RETURN NUMBER
    AS
       str_sql         VARCHAR2(4000 Char);
@@ -2117,9 +2121,9 @@ AS
       str_ctx_name    VARCHAR2(30 Char);
       num_sde_geom_id NUMBER;
       num_size        NUMBER;
-      
-   BEGIN 
-      
+
+   BEGIN
+
       --------------------------------------------------------------------------
       -- Step 10
       -- Check over incoming parameters
@@ -2127,9 +2131,9 @@ AS
       IF str_domain_index_owner IS NULL
       THEN
          str_domain_index_owner := USER;
-         
+
       END IF;
-      
+
       --------------------------------------------------------------------------
       -- Step 20
       -- Verify that object is a domain index
@@ -2155,7 +2159,7 @@ AS
              a.owner = str_domain_index_owner
          AND a.index_name = p_domain_index_name
          AND a.index_type = 'DOMAIN';
-         
+
       EXCEPTION
          WHEN NO_DATA_FOUND
          THEN
@@ -2163,13 +2167,13 @@ AS
                 -20001
                ,'could not find a domain index named ' || p_domain_index_name
             );
-            
+
          WHEN OTHERS
          THEN
             RAISE;
-            
+
       END;
-      
+
       --------------------------------------------------------------------------
       -- Step 30
       -- Process MDSYS.SPATIAL_INDEX
@@ -2177,40 +2181,40 @@ AS
       IF str_ityp_owner = 'MDSYS'
       AND str_ityp_name = 'SPATIAL_INDEX'
       THEN
-         SELECT 
+         SELECT
           a.sdo_index_owner
-         ,a.sdo_index_table 
+         ,a.sdo_index_table
          INTO
           str_spidx_owner
          ,str_spidx_name
          FROM
-         all_sdo_index_metadata a 
-         WHERE 
+         all_sdo_index_metadata a
+         WHERE
              a.sdo_index_owner = str_owner
          AND a.sdo_index_name = str_index_name;
-                 
+
          num_size := get_table_size(
              p_table_owner   => str_spidx_owner
             ,p_table_name    => str_spidx_name
             ,p_user_segments => p_user_segments
          );
-         
+
          -- Account for new MDXT domain tables
          str_mdxt_name := REPLACE(
              str_spidx_name
             ,'MDRT'
             ,'MDXT'
          );
-         
+
          num_size := num_size + get_table_size(
              p_table_owner       => str_spidx_owner
             ,p_table_name        => str_mdxt_name
             ,p_return_zero_onerr => 'TRUE'
             ,p_user_segments     => p_user_segments
          );
-         
-         RETURN num_size;      
-                 
+
+         RETURN num_size;
+
       --------------------------------------------------------------------------
       -- Step 40
       -- Process SDE.ST_SPATIAL_INDEX
@@ -2225,21 +2229,21 @@ AS
                  || 'WHERE '
                  || '    a.owner = :p01 '
                  || 'AND a.table_name = :p02 ';
-                
+
          EXECUTE IMMEDIATE str_sql
          INTO
          num_sde_geom_id
          USING
           str_table_owner
          ,str_table_name;
-         
+
          num_size := get_table_size(
              p_table_owner       => str_table_owner
             ,p_table_name        => 'S' || TO_CHAR(num_sde_geom_id) || '_IDX$'
             ,p_return_zero_onerr => 'TRUE'
             ,p_user_segments     => p_user_segments
          );
-         
+
          RETURN num_size + get_table_size(
              p_table_owner       => str_table_owner
             ,p_table_name        => 'S' || TO_CHAR(num_sde_geom_id) || '$_IX1'
@@ -2251,7 +2255,7 @@ AS
             ,p_return_zero_onerr => 'TRUE'
             ,p_user_segments     => p_user_segments
          );
-      
+
       --------------------------------------------------------------------------
       -- Step 50
       -- Process CTXSYS.CONTEXT
@@ -2268,7 +2272,7 @@ AS
                     || 'WHERE '
                     || '    a.idx_table_owner = :p01 '
                     || 'AND a.idx_table= :p02 ';
-            
+
          ELSE
             str_sql := 'SELECT '
                     || 'a.idx_name '
@@ -2277,16 +2281,16 @@ AS
                     || 'WHERE '
                     || '    a.idx_table_owner = :p01 '
                     || 'AND a.idx_table= :p02 ';
-            
+
          END IF;
-         
+
          EXECUTE IMMEDIATE str_sql
          INTO
          str_ctx_name
          USING
           str_table_owner
          ,str_table_name;
-         
+
          RETURN get_table_size(
              p_table_owner       => str_table_owner
             ,p_table_name        => 'DR$' || str_ctx_name || '$I'
@@ -2308,36 +2312,36 @@ AS
             ,p_return_zero_onerr => 'TRUE'
             ,p_user_segments     => p_user_segments
          );
-         
+
       --------------------------------------------------------------------------
       -- Step 60
       -- Fail if something else
       --------------------------------------------------------------------------
       ELSE
          RAISE_APPLICATION_ERROR(-20001,'unhandled domain index type');
-      
+
       END IF;
-      
+
    END get_domain_index_size;
-   
+
    -----------------------------------------------------------------------------
    -----------------------------------------------------------------------------
    FUNCTION get_table_lob_size(
        p_table_owner        IN  VARCHAR2 DEFAULT NULL
       ,p_table_name         IN  VARCHAR2
-      ,p_user_segments      IN  VARCHAR2 DEFAULT 'FALSE' 
+      ,p_user_segments      IN  VARCHAR2 DEFAULT 'FALSE'
    ) RETURN NUMBER
    AS
       num_lob_size     NUMBER := 0;
       ary_lob_segments MDSYS.SDO_STRING2_ARRAY;
       ary_lob_indexes  MDSYS.SDO_STRING2_ARRAY;
-      
-   BEGIN 
-      
+
+   BEGIN
+
       SELECT
        a.segment_name
       ,a.index_name
-      BULK COLLECT INTO 
+      BULK COLLECT INTO
        ary_lob_segments
       ,ary_lob_indexes
       FROM
@@ -2345,14 +2349,14 @@ AS
       WHERE
           a.owner = p_table_owner
       AND a.table_name = p_table_name;
-      
+
       IF ary_lob_segments IS NULL
       OR ary_lob_segments.COUNT = 0
       THEN
          RETURN 0;
-         
+
       END IF;
-      
+
       FOR i IN 1 .. ary_lob_segments.COUNT
       LOOP
          num_lob_size := num_lob_size + get_object_size(
@@ -2361,41 +2365,41 @@ AS
             ,p_segment_type  => 'LOBSEGMENT'
             ,p_user_segments => p_user_segments
          );
-         
+
          num_lob_size := num_lob_size + get_object_size(
              p_segment_owner => p_table_owner
             ,p_segment_name  => ary_lob_indexes(i)
             ,p_segment_type  => 'LOBINDEX'
             ,p_user_segments => p_user_segments
          );
-               
+
       END LOOP;
-      
+
       RETURN num_lob_size;
-      
+
    END get_table_lob_size;
-   
+
    -----------------------------------------------------------------------------
    -----------------------------------------------------------------------------
    FUNCTION is_complex_object_table(
        p_table_owner        IN  VARCHAR2 DEFAULT NULL
-      ,p_table_name         IN  VARCHAR2      
+      ,p_table_name         IN  VARCHAR2
    ) RETURN VARCHAR2
    AS
       str_table_owner VARCHAR2(30 Char) := p_table_owner;
       str_data_type   VARCHAR2(255 Char);
-      
+
    BEGIN
-   
+
       IF str_table_owner IS NULL
       THEN
          str_table_owner := USER;
-         
+
       END IF;
-   
+
       SELECT
       b.data_type
-      INTO 
+      INTO
       str_data_type
       FROM
       all_all_tables a
@@ -2406,7 +2410,7 @@ AS
          ,bb.data_type
          FROM
          all_tab_columns bb
-         WHERE 
+         WHERE
              bb.owner = str_table_owner
          AND bb.table_name = p_table_name
          AND bb.data_type IN ('SDO_GEORASTER')
@@ -2414,44 +2418,44 @@ AS
       ON
           a.owner = b.owner
       AND a.table_name = b.table_name;
-      
+
       RETURN str_data_type;
-      
+
    EXCEPTION
       WHEN NO_DATA_FOUND
       THEN
          RETURN NULL;
-         
+
       WHEN OTHERS
       THEN
          RAISE;
-   
+
    END is_complex_object_table;
-   
+
    -----------------------------------------------------------------------------
    -----------------------------------------------------------------------------
    PROCEDURE get_sdo_georaster_tables(
        p_table_owner        IN  VARCHAR2 DEFAULT NULL
       ,p_table_name         IN  VARCHAR2
       ,p_table_owners       OUT MDSYS.SDO_STRING2_ARRAY
-      ,p_table_names        OUT MDSYS.SDO_STRING2_ARRAY   
+      ,p_table_names        OUT MDSYS.SDO_STRING2_ARRAY
    )
    AS
       str_sql         VARCHAR2(4000 Char);
       str_table_owner VARCHAR2(30 Char) := p_table_owner;
       str_column_name VARCHAR2(30 Char);
-      
+
    BEGIN
-   
+
       IF str_table_owner IS NULL
       THEN
          str_table_owner := USER;
-         
+
       END IF;
-   
+
       -- First collect the SDO_GEORASTER column, I guess we can assume there is only one?
       BEGIN
-         SELECT 
+         SELECT
          b.column_name
          INTO str_column_name
          FROM
@@ -2472,7 +2476,7 @@ AS
          ON
              a.owner = b.owner
          AND a.table_name = b.table_name;
-         
+
       EXCEPTION
          WHEN NO_DATA_FOUND
          THEN
@@ -2480,27 +2484,27 @@ AS
                  -20001
                 ,'cannot find SDO_GEORASTER column in ' || p_table_name
              );
-             
+
          WHEN OTHERS
          THEN
             RAISE;
-             
+
       END;
-       
+
       -- Second get the child table names out of the objects
       str_sql := 'SELECT '
               || ' ''' || str_table_owner || ''''
               || ',a.' || str_column_name || '.RASTERDATATABLE a '
               || 'FROM '
               || str_table_owner || '.' || p_table_name || ' a ';
-             
+
       EXECUTE IMMEDIATE str_sql
-      BULK COLLECT INTO 
+      BULK COLLECT INTO
        p_table_owners
       ,p_table_names;
-   
+
    END get_sdo_georaster_tables;
-   
+
    -----------------------------------------------------------------------------
    -----------------------------------------------------------------------------
    FUNCTION schema_summary(
@@ -2527,23 +2531,23 @@ AS
       ary_sde_domain    dz_dba_summary_list := dz_dba_summary_list();
       ary_sdo_geometry  dz_dba_summary_list := dz_dba_summary_list();
       ary_sdo_domain    dz_dba_summary_list := dz_dba_summary_list();
-      
+
       --------------------------------------------------------------------------
       FUNCTION c2t(
           p_input   IN  dz_dba_summary_tbl
       ) RETURN dz_dba_summary_list
       AS
          ary_output dz_dba_summary_list := dz_dba_summary_list();
-         
+
       BEGIN
-      
+
          IF p_input IS NULL
          OR p_input.COUNT = 0
          THEN
             RETURN ary_output;
-            
+
          END IF;
-         
+
          ary_output.EXTEND(p_input.COUNT);
          FOR i IN 1 .. p_input.COUNT
          LOOP
@@ -2556,13 +2560,13 @@ AS
             ary_output(i).parent_owner      := p_input(i).parent_owner;
             ary_output(i).parent_table_name := p_input(i).parent_table_name;
             ary_output(i).item_size_bytes   := p_input(i).item_size_bytes;
-            
+
          END LOOP;
-         
+
          RETURN ary_output;
-      
+
       END c2t;
-      
+
       --------------------------------------------------------------------------
       PROCEDURE append_ary(
           p_target  IN OUT NOCOPY dz_dba_summary_list
@@ -2570,36 +2574,36 @@ AS
       )
       AS
          int_index NUMBER;
-         
+
       BEGIN
-      
+
          IF p_target IS NULL
          THEN
             p_target := dz_dba_summary_list();
-            
+
          END IF;
-      
+
          IF p_source IS NULL
          OR p_source.COUNT = 0
          THEN
             RETURN;
-            
+
          END IF;
-         
+
          int_index := p_target.COUNT + 1;
          p_target.EXTEND(p_source.COUNT);
-         
+
          FOR i IN 1 .. p_source.COUNT
          LOOP
             p_target(int_index) := p_source(i);
             int_index := int_index + 1;
-         
+
          END LOOP;
-      
+
       END append_ary;
-        
+
    BEGIN
-   
+
       --------------------------------------------------------------------------
       -- Step 10
       -- Check over incoming parameters
@@ -2608,14 +2612,14 @@ AS
       THEN
          str_owner := USER;
          str_user_segments := 'TRUE';
-         
+
       END IF;
-      
+
       IF str_user_segments IS NULL
       OR str_user_segments NOT IN ('TRUE','FALSE')
       THEN
          str_user_segments := 'FALSE';
-         
+
       ELSIF str_user_segments = 'TRUE'
       AND   str_owner <> USER
       THEN
@@ -2623,9 +2627,9 @@ AS
              -20001
             ,'your user_segments cannot measure this schema'
          );
-      
+
       END IF;
-      
+
       --------------------------------------------------------------------------
       -- Step 20
       -- Verify user existence
@@ -2637,14 +2641,14 @@ AS
       all_users a
       WHERE
       a.username = str_owner;
-      
+
       IF num_check IS NULL
       OR num_check = 0
       THEN
          RAISE_APPLICATION_ERROR(-20001,'Unknown user ' || str_owner);
-         
+
       END IF;
-      
+
       SELECT
       COUNT(*)
       INTO num_esri
@@ -2652,7 +2656,7 @@ AS
       all_users a
       WHERE
       a.username = 'SDE';
-      
+
       SELECT
       COUNT(*)
       INTO num_ctx
@@ -2660,11 +2664,11 @@ AS
       all_users a
       WHERE
       a.username = 'CTXSYS';
-      
+
       --------------------------------------------------------------------------
       -- Step 30
       -- First collect any georaster tables
-      --------------------------------------------------------------------------  
+      --------------------------------------------------------------------------
       SELECT
        a.owner
       ,a.table_name
@@ -2677,7 +2681,7 @@ AS
       BULK COLLECT INTO ary_internal_list
       FROM
       all_tab_columns a
-      WHERE 
+      WHERE
           a.owner = str_owner
       AND a.data_type_owner IN ('MDSYS','PUBLIC')
       AND a.data_type = 'SDO_GEORASTER'
@@ -2685,12 +2689,12 @@ AS
        a.owner
       ,a.table_name
       ,a.column_name;
-      
+
       ary_georasters := c2t(ary_internal_list);
-      
+
       --------------------------------------------------------------------------
       -- Step 40
-      -- Second harvest the names of the raster tables 
+      -- Second harvest the names of the raster tables
       --------------------------------------------------------------------------
       FOR i IN 1 .. ary_georasters.COUNT
       LOOP
@@ -2702,28 +2706,28 @@ AS
                  || ',''RASTER'' '
                  || ',''' || ary_georasters(i).owner || ''''
                  || ',''' || ary_georasters(i).table_name || ''''
-                 || ',NULL ' 
+                 || ',NULL '
                  || 'FROM '
                  || ary_georasters(i).owner || '.' || ary_georasters(i).table_name || ' a '
                  || 'WHERE '
                  || 'a.' || ary_georasters(i).category_type1 || ' IS NOT NULL ';
-             
+
          EXECUTE IMMEDIATE str_sql
          BULK COLLECT INTO ary_internal_list;
-         
+
          append_ary(
              ary_rasters
             ,c2t(ary_internal_list)
          );
-      
+
       END LOOP;
-      
+
       --------------------------------------------------------------------------
       -- Step 50
       -- Next collect any topologies in the schema
-      --------------------------------------------------------------------------  
+      --------------------------------------------------------------------------
       WITH topologies AS (
-         SELECT 
+         SELECT
           a.owner
          ,a.topology
          FROM
@@ -2793,22 +2797,22 @@ AS
          FROM
          topologies ff
       ) a;
-      
+
       ary_topologies := c2t(ary_internal_list);
-      
+
       --------------------------------------------------------------------------
       -- Step 60
       -- Next collect any ndms in the schema
       --------------------------------------------------------------------------
       WITH ndms AS (
-         SELECT 
+         SELECT
           a.owner
          ,a.network
          ,a.lrs_table_name
          ,a.node_table_name
          ,a.link_table_name
          ,a.path_table_name
-         ,a.path_link_table_name 
+         ,a.path_link_table_name
          ,a.subpath_table_name
          ,a.partition_table_name
          ,a.partition_blob_table_name
@@ -2935,12 +2939,12 @@ AS
       ,a.table_name
       ,a.parent_owner
       ,a.parent_table_name;
-      
+
       ary_ndms := c2t(ary_internal_list);
-      
+
       --------------------------------------------------------------------------
       -- Step 70
-      -- harvest any SDE.ST_GEOMETRY domain tables 
+      -- harvest any SDE.ST_GEOMETRY domain tables
       --------------------------------------------------------------------------
       IF num_esri = 1
       THEN
@@ -2952,18 +2956,18 @@ AS
                  || ',''FEATURE CLASS'' '
                  || ',NULL '
                  || ',NULL '
-                 || ',NULL ' 
+                 || ',NULL '
                  || 'FROM '
                  || 'sde.st_geometry_columns a '
                  || 'WHERE '
                  || 'a.owner = :p01 ';
-         
-         EXECUTE IMMEDIATE str_sql 
+
+         EXECUTE IMMEDIATE str_sql
          BULK COLLECT INTO ary_internal_list
          USING str_owner;
-         
+
          ary_sde_geometry := c2t(ary_internal_list);
-      
+
          str_sql := 'SELECT '
                  || ' a.owner '
                  || ',''S'' || a.geom_id || ''_IDX$'' '
@@ -2972,23 +2976,23 @@ AS
                  || ',''FEATURE CLASS'' '
                  || ',a.owner '
                  || ',a.table_name '
-                 || ',NULL ' 
+                 || ',NULL '
                  || 'FROM '
                  || 'sde.st_geometry_columns a '
                  || 'WHERE '
                  || 'a.owner = :p01 ';
-         
-         EXECUTE IMMEDIATE str_sql 
+
+         EXECUTE IMMEDIATE str_sql
          BULK COLLECT INTO ary_internal_list
          USING str_owner;
-         
+
          ary_sde_domain := c2t(ary_internal_list);
-        
+
       END IF;
-      
+
       --------------------------------------------------------------------------
       -- Step 80
-      -- harvest any MDSYS.SDO_TOPO_GEOMETRY spatial tables 
+      -- harvest any MDSYS.SDO_TOPO_GEOMETRY spatial tables
       --------------------------------------------------------------------------
       SELECT
        a.owner
@@ -3012,9 +3016,9 @@ AS
       ORDER BY
        a.owner
       ,a.table_name;
-      
+
       ary_sdo_geometry := c2t(ary_internal_list);
-      
+
       --------------------------------------------------------------------------
       -- Step 90
       -- harvest any MDSYS.SDO_GEOMETRY spatial tables but skip sdo items
@@ -3048,12 +3052,12 @@ AS
       ORDER BY
        a.owner
       ,a.table_name;
-      
+
       append_ary(
           ary_sdo_geometry
          ,c2t(ary_internal_list)
       );
-      
+
       --------------------------------------------------------------------------
       -- Step 100
       -- harvest any MDSYS.SDO_GEOMETRY domain tables but segregate indexes
@@ -3069,7 +3073,7 @@ AS
           'MDSYS.SDO_GEOMETRY'
        ELSE
           c.category_type2
-       END  
+       END
       ,'FEATURE CLASS'
       ,a.table_owner
       ,a.table_name
@@ -3089,14 +3093,14 @@ AS
           a.owner = str_owner
       AND (a.table_owner,a.table_name) NOT IN (SELECT table_owner,table_name FROM TABLE(ary_georasters))
       AND (a.table_owner,a.table_name) NOT IN (SELECT table_owner,table_name FROM TABLE(ary_rasters))
-      AND (a.table_owner,a.table_name) NOT IN (SELECT table_owner,table_name FROM TABLE(ary_topologies)) 
-      AND (a.table_owner,a.table_name) NOT IN (SELECT table_owner,table_name FROM TABLE(ary_ndms)) 
+      AND (a.table_owner,a.table_name) NOT IN (SELECT table_owner,table_name FROM TABLE(ary_topologies))
+      AND (a.table_owner,a.table_name) NOT IN (SELECT table_owner,table_name FROM TABLE(ary_ndms))
       ORDER BY
        b.sdo_index_owner
       ,b.sdo_index_table;
-      
+
       ary_sdo_domain := c2t(ary_internal_list);
-      
+
       SELECT
        b.sdo_index_owner
       ,b.sdo_index_table
@@ -3116,17 +3120,17 @@ AS
       WHERE
           a.owner = str_owner
       AND ( (a.table_owner,a.table_name) IN (SELECT table_owner,table_name FROM TABLE(ary_georasters))
-          OR (a.table_owner,a.table_name) IN (SELECT table_owner,table_name FROM TABLE(ary_rasters)) 
+          OR (a.table_owner,a.table_name) IN (SELECT table_owner,table_name FROM TABLE(ary_rasters))
       )
       ORDER BY
        b.sdo_index_owner
       ,b.sdo_index_table;
-      
+
       append_ary(
           ary_sdo_domain
          ,c2t(ary_internal_list)
       );
-      
+
       SELECT
        b.sdo_index_owner
       ,b.sdo_index_table
@@ -3152,12 +3156,12 @@ AS
       ORDER BY
        b.sdo_index_owner
       ,b.sdo_index_table;
-      
+
       append_ary(
           ary_sdo_domain
          ,c2t(ary_internal_list)
       );
-      
+
       SELECT
        b.sdo_index_owner
       ,b.sdo_index_table
@@ -3183,16 +3187,16 @@ AS
       ORDER BY
        b.sdo_index_owner
       ,b.sdo_index_table;
-      
+
       append_ary(
           ary_sdo_domain
          ,c2t(ary_internal_list)
       );
-      
-      ary_tmp_load := ary_sdo_domain;      
+
+      ary_tmp_load := ary_sdo_domain;
       int_index := ary_sdo_domain.COUNT + 1;
       ary_sdo_domain.EXTEND(ary_tmp_load.COUNT);
-      
+
       FOR i IN 1 .. ary_tmp_load.COUNT
       LOOP
          ary_sdo_domain(int_index) := ary_tmp_load(i);
@@ -3202,9 +3206,9 @@ AS
             ,'MDXT'
          );
          int_index := int_index + 1;
-      
+
       END LOOP;
-      
+
       --------------------------------------------------------------------------
       -- Step 100
       -- Check for CTX domain index tables
@@ -3217,16 +3221,16 @@ AS
                  || '   ,a.idx_table_owner '
                  || '   ,a.idx_table '
                  || '   FROM ';
-                 
+
          IF str_user_segments = 'TRUE'
          THEN
             str_sql := str_sql || '   ctxsys.ctx_user_indexes a ';
-            
+
          ELSE
             str_sql := str_sql || '   ctxsys.ctx_indexes a ';
-            
+
          END IF;
-         
+
          str_sql := str_sql
                  || '   WHERE '
                  || '   a.idx_table_owner = :p01 '
@@ -3296,15 +3300,15 @@ AS
                  || '   FROM '
                  || '   ctxs ee '
                  || ') a ';
-                 
-         EXECUTE IMMEDIATE str_sql    
+
+         EXECUTE IMMEDIATE str_sql
          BULK COLLECT INTO ary_internal_list
          USING str_owner;
-         
+
          ary_ctxs := c2t(ary_internal_list);
-         
+
       END IF;
-      
+
       --------------------------------------------------------------------------
       -- Step 110
       -- Now categorize each table
@@ -3330,7 +3334,7 @@ AS
       BULK COLLECT INTO ary_internal_list
       FROM (
          -- Start with nonspatial tables
-         SELECT 
+         SELECT
           aa.owner
          ,aa.table_name
          ,'TABLE'   AS category_type1
@@ -3378,8 +3382,8 @@ AS
          ,'MDSYS.SDO_RASTER'
          ,'MDSYS.SDO_GEORASTER'
          ,'RASTER'
-         ,ee.parent_owner 
-         ,ee.parent_table_name 
+         ,ee.parent_owner
+         ,ee.parent_table_name
          ,NULL
          FROM
          all_tables_pool dd
@@ -3396,8 +3400,8 @@ AS
          ,gg.category_type1
          ,gg.category_type2
          ,gg.category_type3
-         ,gg.parent_owner 
-         ,gg.parent_table_name 
+         ,gg.parent_owner
+         ,gg.parent_table_name
          ,NULL
          FROM
          all_tables_pool ff
@@ -3414,8 +3418,8 @@ AS
          ,ii.category_type1
          ,ii.category_type2
          ,ii.category_type3
-         ,ii.parent_owner 
-         ,ii.parent_table_name 
+         ,ii.parent_owner
+         ,ii.parent_table_name
          ,NULL
          FROM
          all_tables_pool hh
@@ -3524,23 +3528,23 @@ AS
        ELSE
           '1' || category_type1
        END;
-       
+
       --------------------------------------------------------------------------
       -- Step 130
       -- Output the results
       --------------------------------------------------------------------------
       FOR i IN 1 .. ary_internal_list.COUNT
-      LOOP 
+      LOOP
          ary_internal_list(i).item_size_bytes := get_simple_table_size(
              p_table_owner   => ary_internal_list(i).owner
             ,p_table_name    => ary_internal_list(i).table_name
-            ,p_user_segments => str_user_segments   
+            ,p_user_segments => str_user_segments
          );
-         
+
       END LOOP;
-       
+
       ary_tables := c2t(ary_internal_list);
- 
+
       --------------------------------------------------------------------------
       -- Step 130
       -- Output the results
@@ -3548,11 +3552,11 @@ AS
       FOR i IN 1 .. ary_tables.COUNT
       LOOP
          PIPE ROW(ary_tables(i));
-      
+
       END LOOP;
-      
+
    END schema_summary;
-   
+
 END dz_dba_sizer;
 /
 
