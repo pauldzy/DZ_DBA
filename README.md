@@ -35,9 +35,9 @@ SELECT * FROM TABLE(dz_dba_sizer.schema_summary());
 ```
 The results will show each table in the schema with the following additional information:
 * **category_type1** - A basic category explaining the role of the table either as a simple table, a georaster or rdt table, a topology or network component table, a table of vector spatial data (SDO_GEOMETRY or SDE.ST_GEOMETRY), or a domain index table.
-* **category_type2** - The category of the parent object.  For domain index tables this references the type of spatial data the index supports (MDSYS>SDO_GEOMETRY or MDSYS.ST_GEOMETRY or SDE.ST_GEOMETRY).  Useful for grouping the results by storage type.
+* **category_type2** - The category of the parent object.  For domain index tables this references the type of spatial data the index supports (MDSYS.SDO_GEOMETRY or MDSYS.ST_GEOMETRY or SDE.ST_GEOMETRY).  Useful for grouping the results by storage type.
 * **category_type3** - A more generic division of a resource into either RASTER, TOPOLOGY, NETWORK, FEATURE CLASS, ORACLE TEXT or TABLE categories.
-* **parent_owner** - the parent object the resource is a part of.
+* **parent_owner** - the owner of the parent object the resource is a part of.
 * **parent_table_name** - the parent object the resource is part of.  Note in the case of topologies and network data models this name is the name of the dataset and thus does not exist as an actual table in the schema.
 * **item_size_bytes** - the size in bytes of the resource *(includes size of all nondomain indexes and lobs).
 
@@ -61,13 +61,13 @@ Using category_type2 could be helpful in separating your resource between Esri a
 
 <h5>"Datasets"</h5>
 
-The dz_dba_sizer attempts to group together tabular resources into "datasets".  So for example the spatial index domain tables (MDRT and MDXT) that support a spatial index on a business table are grouped together with the business table as a "FEATURE CLASS".  In other situations spatial index domain tables are used by spatial indexes that are part of a more complex dataset, such as a topology.  So in that case the logic bundles the index domain tables with the higher object under "TOPOLOGY".
+The dz_dba_sizer module attempts to group together tabular resources into "datasets".  So for example the spatial index domain tables (MDRT and MDXT) that support a spatial index on a business table are grouped together with the business table as a "FEATURE CLASS".  In other situations spatial index domain tables are used by spatial indexes that are part of a more complex dataset, such as a topology.  So in that case the logic bundles the index domain tables with the higher object under "TOPOLOGY".
 
 As a system this falls apart if users build multiple dataset types on the same business tables.  So in theory you could have a business table representing some kind of region with an SDO_GEOMETRY column of multipoints showing locations of interest, a SDO_GEORASTER column tied to a small land usage raster of the region and a SDO_TOPO_GEOMETRY column tied back to some master topology of the region boundaries.  I don't recommend such an appproach but you can do that.  In that case its not really possible to tease things out into separate categories.  However I am thinking most rational folks keep such things separate for the most part.
 
 Supported Datasets:
 * **RASTER** - Parent is the table containing the column of SDO_GEORASTER. Children are the RDT tables referenced by the georasters and all spatial index domain tables supporting the georaster column.
-* **TOPOLOGY** - Parent is the abstract topology name.  Children are the edge, node, face, relation, history and exp tables of the topology along with all supporting spatial index domain tables.  Note that tables using the topology via SDO_TOPO_GEOMETRY are not part of the dataset.  
+* **TOPOLOGY** - Parent is the abstract topology name.  Children are the edge, node, face, relation, history and exp tables of the topology along with all supporting spatial index domain tables.  Note that tables **using** the topology via SDO_TOPO_GEOMETRY are not part of the dataset.  
 * **NETWORK** - Parent is the abstract network name.  Children are the lrs, node, link, path, path link, subpath, partition, partition blob, component and node level tables as listed in the network metadata along with all supporting spatial index domain tables.  
 * **FEATURE CLASS** - Parent is the table containing the column of MDSYS.SDO_GEOMETRY, MDSYS.ST_GEOMETRY, SDE.ST_GEOMETRY or MDSYS.SDO_TOPO_GEOMETRY.  Children are the domain index tables supporting the spatial indexes.  The differences in the spatial types used are expressed in type_category2 in the output.
 * **ORACLE TEXT** - Parent is the table with the column containing the CTXSYS.CONTENT index.  Children are the I, K, N and R tables of the domain index.
