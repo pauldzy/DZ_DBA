@@ -7,7 +7,7 @@ AS
    header: DZ_DBA
      
    - Build ID: DZBUILDIDDZ
-   - TFS Change Set: DZCHANGESETDZ
+   - Change Set: DZCHANGESETDZ
    
    Utilities for the summation and reorganization of resource storage in Oracle.
    
