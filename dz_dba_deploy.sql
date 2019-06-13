@@ -1,15 +1,9 @@
-
---*************************--
-PROMPT sqlplus_header.sql;
-
 WHENEVER SQLERROR EXIT -99;
 WHENEVER OSERROR  EXIT -98;
 SET DEFINE OFF;
 
-
-
---*************************--
-PROMPT DZ_DBA_SUMMARY.tps;
+--******************************--
+PROMPT Types/DZ_DBA_SUMMARY.tps 
 
 CREATE OR REPLACE TYPE dz_dba_summary FORCE
 AUTHID CURRENT_USER
@@ -33,9 +27,8 @@ AS OBJECT (
 
 GRANT EXECUTE ON dz_dba_summary TO PUBLIC;
 
-
---*************************--
-PROMPT DZ_DBA_SUMMARY.tpb;
+--******************************--
+PROMPT Types/DZ_DBA_SUMMARY.tpb 
 
 CREATE OR REPLACE TYPE BODY dz_dba_summary
 AS
@@ -53,9 +46,8 @@ AS
 END;
 /
 
-
---*************************--
-PROMPT DZ_DBA_SUMMARY_LIST.tps;
+--******************************--
+PROMPT Collections/DZ_DBA_SUMMARY_LIST.tps 
 
 CREATE OR REPLACE TYPE dz_dba_summary_list FORCE
 AS 
@@ -64,9 +56,8 @@ TABLE OF dz_dba_summary;
 
 GRANT EXECUTE ON dz_dba_summary_list TO PUBLIC;
 
-
---*************************--
-PROMPT DZ_DBA_UTIL.pks;
+--******************************--
+PROMPT Packages/DZ_DBA_UTIL.pks 
 
 CREATE OR REPLACE PACKAGE dz_dba_util
 AUTHID CURRENT_USER
@@ -98,9 +89,8 @@ END dz_dba_util;
 
 GRANT EXECUTE ON dz_dba_util TO PUBLIC;
 
-
---*************************--
-PROMPT DZ_DBA_UTIL.pkb;
+--******************************--
+PROMPT Packages/DZ_DBA_UTIL.pkb 
 
 CREATE OR REPLACE PACKAGE BODY dz_dba_util
 AS
@@ -365,9 +355,8 @@ AS
 END dz_dba_util;
 /
 
-
---*************************--
-PROMPT DZ_DBA_MAIN.pks;
+--******************************--
+PROMPT Packages/DZ_DBA_MAIN.pks 
 
 CREATE OR REPLACE PACKAGE dz_dba_main 
 AUTHID CURRENT_USER
@@ -377,8 +366,8 @@ AS
    /*
    header: DZ_DBA
      
-   - Build ID: 11
-   - TFS Change Set: 8194
+   - Release: 
+   - Commit Date: Mon Oct 10 16:40:13 2016 -0400
    
    Utilities for the summation and reorganization of resource storage in Oracle.
    
@@ -544,9 +533,8 @@ END dz_dba_main;
 
 GRANT EXECUTE ON dz_dba_main TO public;
 
-
---*************************--
-PROMPT DZ_DBA_MAIN.pkb;
+--******************************--
+PROMPT Packages/DZ_DBA_MAIN.pkb 
 
 CREATE OR REPLACE PACKAGE BODY dz_dba_main
 AS
@@ -1392,9 +1380,8 @@ AS
 END dz_dba_main;
 /
 
-
---*************************--
-PROMPT DZ_DBA_SIZER.pks;
+--******************************--
+PROMPT Packages/DZ_DBA_SIZER.pks 
 
 CREATE OR REPLACE PACKAGE dz_dba_sizer
 AUTHID CURRENT_USER
@@ -1646,9 +1633,8 @@ END dz_dba_sizer;
 
 GRANT EXECUTE ON dz_dba_sizer TO PUBLIC;
 
-
---*************************--
-PROMPT DZ_DBA_SIZER.pkb;
+--******************************--
+PROMPT Packages/DZ_DBA_SIZER.pkb 
 
 CREATE OR REPLACE PACKAGE BODY dz_dba_sizer
 AS
@@ -3558,20 +3544,17 @@ AS
    END schema_summary;
 
 END dz_dba_sizer;
-/
-
-
---*************************--
-PROMPT DZ_DBA_TEST.pks;
+/--******************************--
+PROMPT Packages/DZ_DBA_TEST.pks 
 
 CREATE OR REPLACE PACKAGE dz_dba_test
 AUTHID DEFINER
 AS
 
-   C_TFS_CHANGESET CONSTANT NUMBER := 8194;
-   C_JENKINS_JOBNM CONSTANT VARCHAR2(255 Char) := 'NULL';
-   C_JENKINS_BUILD CONSTANT NUMBER := 11;
-   C_JENKINS_BLDID CONSTANT VARCHAR2(255 Char) := 'NULL';
+   C_GITRELEASE    CONSTANT VARCHAR2(255 Char) := '';
+   C_GITCOMMIT     CONSTANT VARCHAR2(255 Char) := '12bdc52fe14d3e1145f61db75207b7f27865f8ce';
+   C_GITCOMMITDATE CONSTANT VARCHAR2(255 Char) := 'Mon Oct 10 16:40:13 2016 -0400';
+   C_GITCOMMITAUTH CONSTANT VARCHAR2(255 Char) := 'Paul Dziemiela';
    
    C_PREREQUISITES CONSTANT MDSYS.SDO_STRING2_ARRAY := MDSYS.SDO_STRING2_ARRAY(
    );
@@ -3601,9 +3584,8 @@ END dz_dba_test;
 
 GRANT EXECUTE ON dz_dba_test TO public;
 
-
---*************************--
-PROMPT DZ_DBA_TEST.pkb;
+--******************************--
+PROMPT Packages/DZ_DBA_TEST.pkb 
 
 CREATE OR REPLACE PACKAGE BODY dz_dba_test
 AS
@@ -3646,10 +3628,12 @@ AS
    RETURN VARCHAR2
    AS
    BEGIN
-      RETURN '{"TFS":' || C_TFS_CHANGESET || ','
-      || '"JOBN":"' || C_JENKINS_JOBNM || '",'   
-      || '"BUILD":' || C_JENKINS_BUILD || ','
-      || '"BUILDID":"' || C_JENKINS_BLDID || '"}';
+      RETURN '{'
+      || ' "GITRELEASE":"'    || C_GITRELEASE    || '"'
+      || ',"GITCOMMIT":"'     || C_GITCOMMIT     || '"'
+      || ',"GITCOMMITDATE":"' || C_GITCOMMITDATE || '"'
+      || ',"GITCOMMITAUTH":"' || C_GITCOMMITAUTH || '"'
+      || '}';
       
    END version;
    
@@ -3675,11 +3659,6 @@ AS
 
 END dz_dba_test;
 /
-
-
---*************************--
-PROMPT sqlplus_footer.sql;
-
 
 SHOW ERROR;
 
@@ -3714,4 +3693,5 @@ END;
 /
 
 EXIT;
+SET DEFINE OFF;
 

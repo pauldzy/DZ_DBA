@@ -6,8 +6,8 @@ AS
    /*
    header: DZ_DBA
      
-   - Build ID: DZBUILDIDDZ
-   - Change Set: DZCHANGESETDZ
+   - Release: %GITRELEASE%
+   - Commit Date: %GITCOMMITDATE%
    
    Utilities for the summation and reorganization of resource storage in Oracle.
    
